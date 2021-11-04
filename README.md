@@ -3,7 +3,7 @@ This project investigates ways to automatically determine (in some cases) whethe
 
 **Input**: Some first-party codebase. Some metadata about a vulnerability in a dependency used by the first-party codebase. At minimum this data needs to provide a link to some patch / diff / pull request.
 
-O****utput: A code path that takes you from first party code to some line that will be fixed by applying a patch to the dependency, if possible to find. If found, this gives you high assurance that you are affected by this vulnerability. If a code path is not found, returns "No path"
+**Output**: A code path that takes you from first party code to some line that will be fixed by applying a patch to the dependency, if possible to find. If found, this gives you high assurance that you are affected by this vulnerability. If a code path is not found, returns "No path"
 
 **Algorithm**:
 
