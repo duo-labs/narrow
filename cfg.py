@@ -1,6 +1,7 @@
 import ast
 import typing
 import copy
+import os
 
 
 class FunctionDefVisitor(ast.NodeVisitor):
@@ -13,6 +14,19 @@ class FunctionDefVisitor(ast.NodeVisitor):
 
     def get_functions(self):
         return self._funcs
+
+
+class ImportVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self._imports = {}
+
+    def visit_Import(self, node: ast.Import):
+        for alias in node.names:
+            if alias.name not in self._imports:
+                self._imports[alias.name] = copy.deepcopy(alias)
+
+    def get_imports(self):
+        return self._imports
 
 
 class InternalGraphRepesentation:
@@ -70,6 +84,12 @@ class InternalGraphRepesentation:
 
         return False
 
+    def has_function(self, function_name: str):
+        if function_name in self._graph:
+            return True
+
+        return False
+
 
 class ControlFlowGraph:
     def __init__(self):
@@ -84,12 +104,13 @@ class ControlFlowGraph:
             syntax_tree: ast.Module = ast.parse(source_content.read(), file_path)
             self._root_tree = copy.deepcopy(syntax_tree)
 
-            self._parse_and_resolve(syntax_tree, ['__narrow_entry__'])
+            self._parse_and_resolve(syntax_tree, ['__narrow_entry__'], file_path)
 
             print(self._graph)
 
     def _parse_and_resolve(self, ast_chunk: ast.AST,
-                           context: typing.List[str]):
+                           context: typing.List[str],
+                           current_file_location: str):
         if isinstance(ast_chunk, ast.Call):
             func_name = None
             if isinstance(ast_chunk.func, ast.Name):
@@ -98,10 +119,10 @@ class ControlFlowGraph:
                 func_name = ast_chunk.func.attr
 
             self._graph.add_node_to_graph(context, func_name)
-            call_def = self._find_function_def_node(func_name)
+            call_def = self._find_function_def_node(func_name, self._root_tree, current_file_location)
             if call_def:
                 self._parse_and_resolve(call_def,
-                                        context + [func_name])
+                                        context + [func_name], current_file_location)
 
         # More work?
         if hasattr(ast_chunk, 'body'):
@@ -109,14 +130,12 @@ class ControlFlowGraph:
                 # Check for FunctionDefs because we don't want to walk these
                 # until we find a function call to them.
                 if not isinstance(child, ast.FunctionDef):
-                    self._parse_and_resolve(child, context)
+                    self._parse_and_resolve(child, context, current_file_location)
         elif hasattr(ast_chunk, 'value'):
-            self._parse_and_resolve(ast_chunk.value, context)
+            self._parse_and_resolve(ast_chunk.value, context, current_file_location)
 
     # Find a Function Definition node and return it, if possible
-    def _find_function_def_node(self, func_name: str):
-        starting_ast = self._root_tree
-
+    def _find_function_def_node(self, func_name: str, starting_ast: ast.AST, current_file_location: str):
         func_visitor = FunctionDefVisitor()
         func_visitor.visit(starting_ast)
 
@@ -124,9 +143,38 @@ class ControlFlowGraph:
         if func_name in funcs:
             return funcs[func_name]
 
+        # Not in current file, check imported files
+        import_visitor = ImportVisitor()
+        import_visitor.visit(starting_ast)
+
+        imports = import_visitor.get_imports()
+
+        for import_name, node in imports.items():
+            import_path = self._find_entry_for_import(import_name, current_file_location)
+            if import_path:
+                with open(import_path, mode='r') as source_content:
+                    syntax_tree: ast.Module = ast.parse(source_content.read(), import_path)
+                    other_tree = copy.deepcopy(syntax_tree)
+
+                    res = self._find_function_def_node(func_name, other_tree, import_path)
+                    if res:
+                        return res
+
+        return None
+
+    # Returns the file on disk corresponding to the import if it can be found
+    # Otherwise returns None
+    def _find_entry_for_import(self, import_name: str, current_file_location: str):
+        # If there's a file name matching import_name in the same location as
+        # the calling file this is probably what will get imported
+        caller_abs_path = os.path.abspath(current_file_location)
+        caller_directory = os.path.dirname(caller_abs_path)
+
+        target_path = os.path.join(caller_directory, import_name + ".py")
+        if os.path.exists(target_path):
+            return target_path
+
         return None
 
     def function_exists(self, func_name: str):
-        node = self._find_function_def_node(func_name)
-        return node is not None
-
+        return self._graph.has_function(func_name)
