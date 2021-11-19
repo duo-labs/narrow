@@ -3,7 +3,6 @@ import typing
 import copy
 import os
 
-
 class FunctionDefVisitor(ast.NodeVisitor):
     def __init__(self):
         self._funcs = {}
@@ -92,9 +91,11 @@ class InternalGraphRepesentation:
 
 
 class ControlFlowGraph:
-    def __init__(self):
+    def __init__(self, function_to_locate: str = None):
         self._graph = InternalGraphRepesentation()
         self._root_tree = None
+        self._function_to_locate = function_to_locate
+        self._detected = False
 
     # Function responsible for constructing a CFG given an entry file.
     #   only_file: If True, only builds a CFG contained in a single file.
@@ -105,8 +106,15 @@ class ControlFlowGraph:
             self._root_tree = copy.deepcopy(syntax_tree)
 
             self._parse_and_resolve(syntax_tree, ['__narrow_entry__'], file_path)
+            
+            if self._detected == False:
+                print("Not found")
+                print(self._graph)
 
-            print(self._graph)
+
+    def did_detect(self):
+        return self._detected
+
 
     def _parse_and_resolve(self, ast_chunk: ast.AST,
                            context: typing.List[str],
@@ -119,11 +127,18 @@ class ControlFlowGraph:
                 func_name = ast_chunk.func.attr
 
             self._graph.add_node_to_graph(context, func_name)
+
+            if self._function_to_locate == func_name:
+                print("Found")
+                self._detected = True
+                print(self._graph)
+                return
+
+            
             call_def = self._find_function_def_node(func_name, self._root_tree, current_file_location)
             if call_def:
                 self._parse_and_resolve(call_def,
                                         context + [func_name], current_file_location)
-
         # More work?
         if hasattr(ast_chunk, 'body'):
             for child in ast_chunk.body:
