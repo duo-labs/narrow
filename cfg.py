@@ -106,7 +106,10 @@ class ControlFlowGraph:
         # More work?
         if hasattr(ast_chunk, 'body'):
             for child in ast_chunk.body:
-                self._parse_and_resolve(child, context)
+                # Check for FunctionDefs because we don't want to walk these
+                # until we find a function call to them.
+                if not isinstance(child, ast.FunctionDef):
+                    self._parse_and_resolve(child, context)
         elif hasattr(ast_chunk, 'value'):
             self._parse_and_resolve(ast_chunk.value, context)
 
