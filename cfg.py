@@ -125,3 +125,8 @@ class ControlFlowGraph:
             return funcs[func_name]
 
         return None
+
+    def function_exists(self, func_name: str):
+        node = self._find_function_def_node(func_name)
+        return node is not None
+
