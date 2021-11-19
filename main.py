@@ -1,14 +1,14 @@
-import sys
-
+import argparse
 import cfg
 
-starting_file = sys.argv[1]
-function_to_locate = sys.argv[2]
+parser = argparse.ArgumentParser(description='Generates Control Flow Graph for given code')
+parser.add_argument('file', help ='the starting file')
+parser.add_argument('function', help = 'the function to locate')
+args = parser.parse_args()
 
-graph = cfg.ControlFlowGraph(function_to_locate)
-graph.construct_from_file(starting_file, True)
+graph = cfg.ControlFlowGraph(args.function)
+graph.construct_from_file(args.file, True)
 
-some_variable = graph.did_detect()
-if some_variable == False:
+detect_status = graph.did_detect()
+if detect_status == False:
     exit(1)
-

@@ -108,7 +108,7 @@ class ControlFlowGraph:
             self._parse_and_resolve(syntax_tree, ['__narrow_entry__'], file_path)
             
             if self._detected == False:
-                print("Not found")
+                print('Did not find {} in code'.format(self._function_to_locate))
                 print(self._graph)
 
 
@@ -129,7 +129,7 @@ class ControlFlowGraph:
             self._graph.add_node_to_graph(context, func_name)
 
             if self._function_to_locate == func_name:
-                print("Found")
+                print('Found {} in code'.format(self._function_to_locate))
                 self._detected = True
                 print(self._graph)
                 return
