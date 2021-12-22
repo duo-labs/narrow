@@ -2,6 +2,8 @@ import ast
 import typing
 import copy
 import os
+import networkx
+import matplotlib.pyplot as plt
 
 class FunctionDefVisitor(ast.NodeVisitor):
     def __init__(self):
@@ -35,6 +37,30 @@ class InternalGraphRepesentation:
                 'next': set()
             }
         }
+
+    def _get_subgraph_for(self, key):
+        subgraph = {}
+        for val in self._graph[key]['next']:
+            subgraph[val] = self._get_subgraph_for(val)
+
+        return subgraph
+
+    def get_expanded_graph(self):
+        resolved_graph = self._get_subgraph_for('__narrow_entry__')
+
+        return resolved_graph
+
+    def get_networkx_digraph(self):
+        graph = networkx.DiGraph()
+
+        for key in self._graph.keys():
+            graph.add_node(key, label=key)
+
+        for key in self._graph.keys():
+            for child in self._graph[key]['next']:
+                graph.add_edge(key, child)
+
+        return graph
 
     def __str__(self):
         return self._graph.__repr__()
@@ -106,14 +132,23 @@ class ControlFlowGraph:
             self._root_tree = copy.deepcopy(syntax_tree)
 
             self._parse_and_resolve(syntax_tree, ['__narrow_entry__'], file_path)
-            
+
             if self._detected == False:
                 print('Did not find {} in code'.format(self._function_to_locate))
-                print(self._graph)
 
 
     def did_detect(self):
         return self._detected
+
+    def print_graph_to_stdout(self):
+        print(self._graph.get_expanded_graph())
+
+    def print_graph_matplotlib(self):
+        networkx_data = self._graph.get_networkx_digraph()
+
+        networkx.draw_spring(networkx_data, with_labels=True)
+
+        plt.show()
 
 
     def _parse_and_resolve(self, ast_chunk: ast.AST,
@@ -131,10 +166,9 @@ class ControlFlowGraph:
             if self._function_to_locate == func_name:
                 print('Found {} in code'.format(self._function_to_locate))
                 self._detected = True
-                print(self._graph)
                 return
 
-            
+
             call_def = self._find_function_def_node(func_name, self._root_tree, current_file_location)
             if call_def:
                 self._parse_and_resolve(call_def,

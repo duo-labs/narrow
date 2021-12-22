@@ -4,9 +4,10 @@ stages:
   - test
 
 test:
+  image: debian:10-slim
   stage: test
   script:
-    - apk add --no-cache python3 py3-pip
+    - apt update && apt install python3 python3-pip build-essential zlib1g zlib1g-dev libjpeg-dev libpng-dev --yes
     - python3 -m pip install -r requirements.txt
     - python3 -m pytest tests.py
   tags:

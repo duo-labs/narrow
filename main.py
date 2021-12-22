@@ -9,6 +9,8 @@ args = parser.parse_args()
 graph = cfg.ControlFlowGraph(args.function)
 graph.construct_from_file(args.file, True)
 
+graph.print_graph_matplotlib()
+
 detect_status = graph.did_detect()
 if detect_status == False:
     exit(1)
