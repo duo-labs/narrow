@@ -1,3 +1,6 @@
+def notused():
+    print("Not Used")
+
 def foo():
     print("Foo")
     bar()

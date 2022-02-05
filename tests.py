@@ -4,7 +4,7 @@ import cfg
 
 def test_single_file():
     graph = cfg.ControlFlowGraph()
-    graph.construct_from_file("tests/single_file/main.py", True)
+    graph.construct_from_file("tests/projects/single_file/main.py", True)
 
     assert graph.function_exists("foo")
     assert graph.function_exists("bar")
