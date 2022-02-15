@@ -10,6 +10,7 @@ class FunctionDefVisitor(ast.NodeVisitor):
         self._funcs = {}
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
+        print(node.name)
         if node.name not in self._funcs:
             self._funcs[node.name] = copy.deepcopy(node)
 
@@ -168,11 +169,16 @@ class ControlFlowGraph:
                 self._detected = True
                 return
 
-
             call_def = self._find_function_def_node(func_name, self._root_tree, current_file_location)
             if call_def:
                 self._parse_and_resolve(call_def,
                                         context + [func_name], current_file_location)
+
+        if isinstance(ast_chunk, ast.BinOp):
+            # Need to recursively check left and right sides
+            self._parse_and_resolve(ast_chunk.left, context, current_file_location)
+            self._parse_and_resolve(ast_chunk.right, context, current_file_location)
+
         # More work?
         if hasattr(ast_chunk, 'body'):
             for child in ast_chunk.body:
@@ -180,8 +186,13 @@ class ControlFlowGraph:
                 # until we find a function call to them.
                 if not isinstance(child, ast.FunctionDef):
                     self._parse_and_resolve(child, context, current_file_location)
+        if hasattr(ast_chunk, 'args'):
+            if isinstance(ast_chunk.args, list):
+                for child in ast_chunk.args:
+                    self._parse_and_resolve(child, context, current_file_location)
         elif hasattr(ast_chunk, 'value'):
             self._parse_and_resolve(ast_chunk.value, context, current_file_location)
+
 
     # Find a Function Definition node and return it, if possible
     def _find_function_def_node(self, func_name: str, starting_ast: ast.AST, current_file_location: str):
