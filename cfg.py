@@ -10,12 +10,28 @@ class FunctionDefVisitor(ast.NodeVisitor):
         self._funcs = {}
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        print(node.name)
         if node.name not in self._funcs:
             self._funcs[node.name] = copy.deepcopy(node)
 
     def get_functions(self):
         return self._funcs
+
+
+class ClassDefVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.initalizer = None
+
+    def visit_ClassDef(self, node: ast.ClassDef):
+        func_visitor = FunctionDefVisitor()
+        func_visitor.visit(node)
+
+        funcs = func_visitor.get_functions()
+
+        if '__init__' in funcs:
+            self.initalizer = copy.deepcopy(funcs['__init__'])
+
+    def get_initalizer(self):
+        return self.initalizer
 
 
 class ImportVisitor(ast.NodeVisitor):
@@ -164,15 +180,15 @@ class ControlFlowGraph:
 
             self._graph.add_node_to_graph(context, func_name)
 
-            if self._function_to_locate == func_name:
-                print('Found {} in code'.format(self._function_to_locate))
-                self._detected = True
-                return
-
             call_def = self._find_function_def_node(func_name, self._root_tree, current_file_location)
             if call_def:
                 self._parse_and_resolve(call_def,
                                         context + [func_name], current_file_location)
+
+            if self._function_to_locate == func_name or (call_def and call_def.name == self._function_to_locate):
+                print('Found {} in code'.format(self._function_to_locate))
+                self._detected = True
+                return
 
         if isinstance(ast_chunk, ast.BinOp):
             # Need to recursively check left and right sides
@@ -195,6 +211,7 @@ class ControlFlowGraph:
 
 
     # Find a Function Definition node and return it, if possible
+    # This may include a Class' __init__ if it exists.
     def _find_function_def_node(self, func_name: str, starting_ast: ast.AST, current_file_location: str):
         func_visitor = FunctionDefVisitor()
         func_visitor.visit(starting_ast)
@@ -202,6 +219,14 @@ class ControlFlowGraph:
         funcs = func_visitor.get_functions()
         if func_name in funcs:
             return funcs[func_name]
+
+        # Check for class definitions
+        class_visitor = ClassDefVisitor()
+        class_visitor.visit(starting_ast)
+        init_func = class_visitor.get_initalizer()
+
+        if init_func:
+            return init_func
 
         # Not in current file, check imported files
         import_visitor = ImportVisitor()
