@@ -22,6 +22,13 @@ else
 	exit 1
 fi
 
+if python3 ../../main.py ../projects/complex/main.py sin; then
+	echo "Found sin succesfully (ambiguous)"
+else
+	echo "Should've detected sin"
+	exit 1
+fi
+
 if python3 ../../main.py ../projects/complex/main.py __init__; then
 	echo "Found __init__ succesfully"
 else

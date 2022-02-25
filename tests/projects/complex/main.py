@@ -13,6 +13,9 @@ class Other:
     def test(self, alpha, beta):
         return alpha + beta.other(alpha)
 
+    def other(self, alpha):
+        return math.sin(alpha)
+
 
 test = Something()
 

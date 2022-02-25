@@ -12,7 +12,7 @@ import ast_visitors
 class ControlFlowGraph:
     def __init__(self, function_to_locate: str = None):
         self._graph = internal_cfg.InternalGraphRepesentation()
-        self._root_tree = None
+        self._root_tree: typing.Optional[ast.AST] = None
         self._function_to_locate = function_to_locate
         self._detected = False
 
@@ -49,7 +49,7 @@ class ControlFlowGraph:
                            context: typing.List[str],
                            current_file_location: str):
         if isinstance(ast_chunk, ast.Call):
-            func_name = None
+            func_name: typing.Optional[str] = None
             if isinstance(ast_chunk.func, ast.Name):
                 func_name = ast_chunk.func.id
             else:
@@ -57,12 +57,17 @@ class ControlFlowGraph:
 
             self._graph.add_node_to_graph(context, func_name)
 
-            call_def = self._find_function_def_node(func_name, self._root_tree, current_file_location)
-            if call_def:
+            call_defs = self._find_function_def_nodes(func_name, self._root_tree, current_file_location)
+            for call_def in call_defs:
                 self._parse_and_resolve(call_def,
                                         context + ['unknown.' + func_name], current_file_location)
 
-            if self._function_to_locate == func_name or (call_def and call_def.name == self._function_to_locate):
+                if (call_def and call_def.name == self._function_to_locate):
+                    print('Found {} in code'.format(self._function_to_locate))
+                    self._detected = True
+                    return
+
+            if self._function_to_locate == func_name:
                 print('Found {} in code'.format(self._function_to_locate))
                 self._detected = True
                 return
@@ -86,24 +91,29 @@ class ControlFlowGraph:
         elif hasattr(ast_chunk, 'value'):
             self._parse_and_resolve(ast_chunk.value, context, current_file_location)
 
-
-    # Find a Function Definition node and return it, if possible
+    # Find all possible matching Function Definition nodes and return them,
+    # if possible
     # This may include a Class' __init__ if it exists.
-    def _find_function_def_node(self, func_name: str, starting_ast: ast.AST, current_file_location: str):
+    def _find_function_def_nodes(self, func_name: str, starting_ast: ast.AST,
+                                 current_file_location: str,
+                                 class_type: str = 'unknown'):
+        result: typing.List[ast.AST] = []
         func_visitor = ast_visitors.FunctionDefVisitor()
         func_visitor.visit(starting_ast)
 
         funcs = func_visitor.get_functions()
-        if func_name in funcs:
-            return funcs[func_name]
+        for func in funcs:
+            if func_name == func["name"]:
+                result.append(func["node"])
 
         # Check for class definitions
         class_visitor = ast_visitors.ClassDefVisitor()
         class_visitor.visit(starting_ast)
-        init_func = class_visitor.get_initalizer()
+        init_funcs = class_visitor.get_initalizer()
 
-        if init_func:
-            return init_func
+        for init_func in init_funcs:
+            if func_name == init_func["class"]:
+                result.append(init_func["node"])
 
         # Not in current file, check imported files
         import_visitor = ast_visitors.ImportVisitor()
@@ -120,12 +130,14 @@ class ControlFlowGraph:
                                                         import_path)
                     other_tree = copy.deepcopy(syntax_tree)
 
-                    res = self._find_function_def_node(func_name, other_tree,
-                                                       import_path)
-                    if res:
-                        return res
+                    definitions = self._find_function_def_nodes(func_name,
+                                                                other_tree,
+                                                                import_path)
 
-        return None
+                    for definition in definitions:
+                        result.append(definition)
+
+        return result
 
     # Returns the file on disk corresponding to the import if it can be found
     # Otherwise returns None
