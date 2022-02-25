@@ -1,3 +1,6 @@
+def other():
+    print("Other")
+
 def notused():
     print("Not Used")
 
@@ -12,3 +15,5 @@ test = 102
 
 if test > 20:
     foo()
+else:
+    other()

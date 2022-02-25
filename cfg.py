@@ -52,30 +52,41 @@ class ControlFlowGraph:
             func_name: typing.Optional[str] = None
             if isinstance(ast_chunk.func, ast.Name):
                 func_name = ast_chunk.func.id
-            else:
+            elif isinstance(ast_chunk.func, ast.Subscript):
+                # TODO Unsure how to handle this yet...
+                pass
+            elif isinstance(ast_chunk.func, ast.Attribute):
                 func_name = ast_chunk.func.attr
+            else:
+                raise ValueError("Unknown Call.func type")
 
-            self._graph.add_node_to_graph(context, func_name)
+            if func_name:
+                if not self.function_exists(func_name):
+                    self._graph.add_node_to_graph(context, func_name)
 
-            call_defs = self._find_function_def_nodes(func_name, self._root_tree, current_file_location)
-            for call_def in call_defs:
-                self._parse_and_resolve(call_def,
-                                        context + ['unknown.' + func_name], current_file_location)
+                    call_defs = self._find_function_def_nodes(func_name, self._root_tree, current_file_location)
+                    for call_def in call_defs:
+                        self._parse_and_resolve(call_def,
+                                                context + ['unknown.' + func_name], current_file_location)
 
-                if (call_def and call_def.name == self._function_to_locate):
+                        if (call_def and call_def.name == self._function_to_locate):
+                            print('Found {} in code'.format(self._function_to_locate))
+                            self._detected = True
+                            return
+
+                if self._function_to_locate == func_name:
                     print('Found {} in code'.format(self._function_to_locate))
                     self._detected = True
                     return
-
-            if self._function_to_locate == func_name:
-                print('Found {} in code'.format(self._function_to_locate))
-                self._detected = True
-                return
 
         if isinstance(ast_chunk, ast.BinOp):
             # Need to recursively check left and right sides
             self._parse_and_resolve(ast_chunk.left, context, current_file_location)
             self._parse_and_resolve(ast_chunk.right, context, current_file_location)
+        elif isinstance(ast_chunk, ast.If):
+            # Need to check orelse in addition to generic body
+            for child in ast_chunk.orelse:
+                self._parse_and_resolve(child, context, current_file_location)
 
         # More work?
         if hasattr(ast_chunk, 'body'):

@@ -8,6 +8,13 @@ else
 	exit 1
 fi
 
+if python3 ../../main.py ../projects/single_file/main.py other; then
+	echo "Found other succesfully"
+else
+	echo "Should've detected other"
+	exit 1
+fi
+
 if python3 ../../main.py ../projects/single_file/main.py print; then
 	echo "Found print succesfully"
 else
