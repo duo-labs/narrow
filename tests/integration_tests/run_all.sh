@@ -4,3 +4,4 @@ set -e
 ./single_file.sh
 ./complex.sh
 ./recursive.sh
+./simple.sh

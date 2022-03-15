@@ -1,2 +1,6 @@
-from twisted.internet import reactor
-reactor.run()
+import twisted
+from twisted.internet import default
+
+twisted._checkRequirements()
+
+default._getInstallFunction('mac')

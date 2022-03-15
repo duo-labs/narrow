@@ -45,7 +45,20 @@ class ImportVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import):
         for alias in node.names:
             if alias.name not in self._imports:
-                self._imports[alias.name] = copy.deepcopy(alias)
+                self._imports[alias.name] = {
+                    'module': '',
+                    'name': alias.name,
+                    'node': copy.deepcopy(alias)
+                }
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        for alias in node.names:
+            if node.module:
+                self._imports[node.module + '.' + alias.name] = {
+                    'module': node.module,
+                    'name': alias.name,
+                    'node': copy.deepcopy(alias)
+                }
 
     def get_imports(self):
         return self._imports
