@@ -84,6 +84,7 @@ class InternalGraphRepesentation:
 
         return False
 
+    @staticmethod
     def remove_class(function_name: str):
         if len(function_name.split('.')) == 2:
             return function_name.split('.')[1]
@@ -98,7 +99,8 @@ class InternalGraphRepesentation:
 
         if not strict:
             keys = self._graph.keys()
-            keys = map(lambda key: InternalGraphRepesentation.remove_class(key), keys)
+            keys = map(
+                lambda key: InternalGraphRepesentation.remove_class(key), keys)
 
             if function_name in keys:
                 return True

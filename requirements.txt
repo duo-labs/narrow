@@ -1,5 +1,3 @@
-typing
-pytest
 networkx
 numpy
 matplotlib
