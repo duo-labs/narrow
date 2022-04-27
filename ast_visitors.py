@@ -48,7 +48,8 @@ class ImportVisitor(ast.NodeVisitor):
                 self._imports[alias.name] = {
                     'module': '',
                     'name': alias.name,
-                    'node': copy.deepcopy(alias)
+                    'node': copy.deepcopy(alias),
+                    'level': None
                 }
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
@@ -57,7 +58,8 @@ class ImportVisitor(ast.NodeVisitor):
                 self._imports[node.module + '.' + alias.name] = {
                     'module': node.module,
                     'name': alias.name,
-                    'node': copy.deepcopy(alias)
+                    'node': copy.deepcopy(alias),
+                    'level': node.level
                 }
 
     def get_imports(self):

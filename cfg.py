@@ -8,7 +8,7 @@ import internal_cfg
 import ast_visitors
 import cache
 import networkx
-import matplotlib as plt
+from matplotlib import pyplot as plt
 
 
 class ControlFlowGraph:
@@ -71,11 +71,14 @@ class ControlFlowGraph:
                 func_name = ast_chunk.func.id
             elif isinstance(ast_chunk.func, ast.Subscript):
                 # TODO Unsure how to handle this yet...
+                print("Skipped something I probably shouldn't")
                 pass
             elif isinstance(ast_chunk.func, ast.Attribute):
                 func_name = ast_chunk.func.attr
+            elif isinstance(ast_chunk.func, ast.Call):
+                self._parse_and_resolve(ast_chunk.func, context, current_file_location)
             else:
-                raise ValueError("Unknown Call.func type")
+                raise ValueError("Unknown Call.func type:" + str(ast_chunk.func))
 
             if func_name:
                 if not self.function_exists(func_name):
@@ -116,12 +119,13 @@ class ControlFlowGraph:
 
         # More work?
         if hasattr(ast_chunk, 'body'):
-            for child in typing.cast(typing.Any, ast_chunk).body:
-                # Check for FunctionDefs because we don't want to walk these
-                # until we find a function call to them.
-                if not isinstance(child, ast.FunctionDef):
-                    self._parse_and_resolve(
-                        child, context, current_file_location)
+            if isinstance(typing.cast(typing.Any, ast_chunk).body, list):
+                for child in typing.cast(typing.Any, ast_chunk).body:
+                    # Check for FunctionDefs because we don't want to walk these
+                    # until we find a function call to them.
+                    if not isinstance(child, ast.FunctionDef):
+                        self._parse_and_resolve(
+                            child, context, current_file_location)
         if hasattr(ast_chunk, 'args'):
             if isinstance(typing.cast(typing.Any, ast_chunk).args, list):
                 for child in typing.cast(typing.Any, ast_chunk).args:
@@ -195,9 +199,11 @@ class ControlFlowGraph:
                 import_path = self._find_entry_for_import(
                                 import_details['name'],
                                 current_file_location,
-                                import_details['module'])
+                                import_details['module'],
+                                import_details['level'])
                 if import_path and \
                    mimetypes.guess_type(import_path)[0] == 'text/x-python':
+
                     with open(import_path, mode='r') as source_content:
                         syntax_tree: ast.Module = ast.parse(
                                                     source_content.read(),
@@ -221,9 +227,18 @@ class ControlFlowGraph:
     # Otherwise returns None
     def _find_entry_for_import(self, import_name: str,
                                current_file_location: str,
-                               module: str = ''):
+                               module: str = '',
+                               level: int = 0):
         # Try using pydeps
         import_loc = None
+        if level == 1:
+            # Try to find a matching import
+            for import_data in self._imports.values():
+                if import_data['path'] == current_file_location:
+                    for imported_name in import_data['imports']:
+                        if imported_name.endswith(module):
+                            return self._imports[imported_name]['path']
+
         if (module != '' and module + '.' + import_name in self._imports):
             import_loc = module + '.' + import_name
         elif (module == '' and import_name in self._imports):

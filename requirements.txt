@@ -3,3 +3,4 @@ numpy
 matplotlib
 mypy
 pydeps
+scipy
