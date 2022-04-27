@@ -1,0 +1,25 @@
+source ../../env/bin/activate
+
+cd ../projects/requests_case
+
+./install.sh
+
+cd ../../integration_tests
+
+if python3 ../../main.py ../projects/requests_case/vulnerable.py rebuild_auth; then
+	echo "Found rebuild_auth succesfully"
+else
+	echo "Should've detected rebuild_auth"
+	exit 1
+fi
+
+if python3 ../../main.py ../projects/requests_case/notvulnerable.py rebuild_auth; then
+	echo "Found rebuild_auth incorrectly"
+	exit 1
+else
+	echo "Should've rebuild_auth tail"
+	exit 0
+fi
+
+echo "PASS"
+exit 0
