@@ -13,11 +13,11 @@ else
 	exit 1
 fi
 
-if python3 ../../main.py ../projects/requests_case/notvulnerable.py rebuild_auth; then
+if python3 ../../main.py ../projects/requests_case/not_vulnerable.py rebuild_auth; then
 	echo "Found rebuild_auth incorrectly"
 	exit 1
 else
-	echo "Should've rebuild_auth tail"
+	echo "Succesfully did not find rebuild_auth"
 	exit 0
 fi
 

@@ -5,3 +5,5 @@ set -e
 ./complex.sh
 ./recursive.sh
 ./simple.sh
+./requests_case.sh
+./with.sh

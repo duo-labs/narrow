@@ -77,6 +77,11 @@ class ControlFlowGraph:
                 func_name = ast_chunk.func.attr
             elif isinstance(ast_chunk.func, ast.Call):
                 self._parse_and_resolve(ast_chunk.func, context, current_file_location)
+            elif isinstance(ast_chunk.func, ast.BoolOp):
+                left = ast_chunk.func.values[0]
+                right = ast_chunk.func.values[1]
+                self._parse_and_resolve(left, context, current_file_location)
+                self._parse_and_resolve(right, context, current_file_location)
             else:
                 raise ValueError("Unknown Call.func type:" + str(ast_chunk.func))
 
