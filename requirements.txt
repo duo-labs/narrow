@@ -4,3 +4,4 @@ matplotlib
 mypy
 pydeps
 scipy
+requests

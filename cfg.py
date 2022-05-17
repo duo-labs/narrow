@@ -76,14 +76,16 @@ class ControlFlowGraph:
             elif isinstance(ast_chunk.func, ast.Attribute):
                 func_name = ast_chunk.func.attr
             elif isinstance(ast_chunk.func, ast.Call):
-                self._parse_and_resolve(ast_chunk.func, context, current_file_location)
+                self._parse_and_resolve(ast_chunk.func, context,
+                                        current_file_location)
             elif isinstance(ast_chunk.func, ast.BoolOp):
                 left = ast_chunk.func.values[0]
                 right = ast_chunk.func.values[1]
                 self._parse_and_resolve(left, context, current_file_location)
                 self._parse_and_resolve(right, context, current_file_location)
             else:
-                raise ValueError("Unknown Call.func type:" + str(ast_chunk.func))
+                raise ValueError("Unknown Call.func type:" +
+                                 str(ast_chunk.func))
 
             if func_name:
                 if not self.function_exists(func_name):
@@ -126,8 +128,8 @@ class ControlFlowGraph:
         if hasattr(ast_chunk, 'body'):
             if isinstance(typing.cast(typing.Any, ast_chunk).body, list):
                 for child in typing.cast(typing.Any, ast_chunk).body:
-                    # Check for FunctionDefs because we don't want to walk these
-                    # until we find a function call to them.
+                    # Check for FunctionDefs because we don't want to walk
+                    # these until we find a function call to them.
                     if not isinstance(child, ast.FunctionDef):
                         self._parse_and_resolve(
                             child, context, current_file_location)
