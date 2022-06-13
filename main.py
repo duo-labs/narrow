@@ -5,8 +5,10 @@ import patch_extractor
 parser = argparse.ArgumentParser(
     description='Generates Control Flow Graph for given code')
 parser.add_argument('file', help='the starting file')
-parser.add_argument('--cve', help='cve ID to use to find targets',
+
+parser.add_argument('--osv-id', help='Vulnerability ID from OSV to use to find targets',
                     required=False)
+
 parser.add_argument('--target', help='the function to locate',
                     required=False)
 parser.add_argument(
@@ -20,9 +22,9 @@ targets = []
 if args.target:
     targets.append(args.target)
 
-if args.cve:
+if args.osv_id:
     extractor = patch_extractor.PatchExtractor()
-    targets += extractor.find_targets_in_ndv_entry(args.cve)
+    targets += extractor.find_targets_in_osv_entry(args.osv_id)
 
 if len(targets) > 1:
     print("Multiple targets detected. We will try only the first one: " +

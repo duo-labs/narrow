@@ -91,3 +91,10 @@ def test_nvd_extraction():
 
     assert('test_auth_is_stripped_on_redirect_off_host' in targets)
     assert('rebuild_auth' in targets)
+
+def test_ghsa_extraction():
+    extractor = patch_extractor.PatchExtractor()
+
+    targets = extractor.find_targets_in_osv_entry('GHSA-g3rq-g295-4j3m')
+    assert('urlize' in targets)
+
