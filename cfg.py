@@ -64,6 +64,9 @@ class ControlFlowGraph:
                            context: typing.List[str],
                            current_file_location: str):
         assert(self._root_tree is not None)
+        if self._detected:
+            # We're done early. Stop parsing
+            return
 
         if isinstance(ast_chunk, ast.Call):
             func_name: typing.Optional[str] = None
@@ -83,6 +86,8 @@ class ControlFlowGraph:
                 right = ast_chunk.func.values[1]
                 self._parse_and_resolve(left, context, current_file_location)
                 self._parse_and_resolve(right, context, current_file_location)
+            elif isinstance(ast_chunk.func, ast.BinOp):
+                self._parse_and_resolve(ast_chunk.func, context, current_file_location)
             else:
                 raise ValueError("Unknown Call.func type:" +
                                  str(ast_chunk.func))

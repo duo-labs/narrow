@@ -8,6 +8,7 @@ import subprocess
 audit_file = sys.argv[1]
 
 command = ["python3", "main.py"]
+confirmed_count = 0
 
 with open(audit_file, 'r') as fd:
     audit_data = fd.read()
@@ -16,11 +17,12 @@ with open(audit_file, 'r') as fd:
     for dependency in audit_json['dependencies']:
         for vuln in dependency['vulns']:
             vuln_id = vuln['id']
-            command.append("--osv-id")
-            command.append(vuln_id)
+            print("Checking vulnerability ID: {}".format(vuln_id))
+            resp = subprocess.run(command + ['--osv-id', vuln_id, 'main.py'], capture_output=True)
 
-# Now run narrow against narrow
+            if resp.returncode == 0:
+                print("CONFIRMED: Vulnerability ID: {}".format(vuln_id))
+                confirmed_count += 1
+            print('\n')
 
-command.append("main.py")
-
-subprocess.call(command)
+exit(confirmed_count)

@@ -6,7 +6,7 @@ cd ../projects/requests_case
 
 cd ../../integration_tests
 
-if python3 ../../main.py ../projects/requests_case/vulnerable.py --osv-id CVE-2018-18074; then
+if python3 ../../main.py ../projects/requests_case/vulnerable.py --osv-id GHSA-x84v-xcm2-53pg; then
 	echo "Found rebuild_auth succesfully"
 else
 	echo "Should've detected rebuild_auth"
