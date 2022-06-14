@@ -5,3 +5,4 @@ typing
 pytest
 data-science-types
 autopep8
+pip-audit

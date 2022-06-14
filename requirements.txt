@@ -4,4 +4,4 @@ matplotlib
 mypy
 pydeps
 scipy
-requests
+requests==2.18.4

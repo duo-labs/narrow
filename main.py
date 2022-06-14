@@ -30,6 +30,10 @@ if len(targets) > 1:
     print("Multiple targets detected. We will try only the first one: " +
           targets[0])
 
+if len(targets) == 0:
+    print("No targets detected. Exiting.")
+    exit(1)
+
 graph = cfg.ControlFlowGraph(targets[0])
 graph.construct_from_file(args.file, True)
 

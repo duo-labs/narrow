@@ -89,6 +89,8 @@ class PatchExtractor:
                and '/pull/' in ref['url']:
                 return self.find_targets_in_github_pull_request(ref['url'])
 
+        return []
+
     def find_targets_in_osv_entry(self, osv_id: str):
         if osv_id.startswith('CVE-'):
             return self.find_targets_in_ndv_entry(osv_id)

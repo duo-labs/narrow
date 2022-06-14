@@ -13,6 +13,11 @@ lint:
 	. env/bin/activate && flake8 *.py
 	. env/bin/activate && mypy *.py
 
+audit:
+	. env/bin/activate && python3 -m pip install -r requirements-dev.txt
+	- . env/bin/activate && python3 -m pip_audit -s osv -r requirements.txt -l -f json -o audit.json
+	. env/bin/activate && python3 utils/audit.py audit.json
+
 clean:
 	rm -rf env
 
