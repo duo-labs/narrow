@@ -8,8 +8,23 @@ import internal_cfg
 import ast_visitors
 import cache
 import networkx
+import threading
 from matplotlib import pyplot as plt
 
+
+# Args should be:
+# [0] -> ControlFlowGraph Object
+# [1:4] -> Args to _find_function_def_nodes
+class FunctionDefNodesFinder(threading.Thread):
+    def __init__(self, find_args):
+        threading.Thread.__init__(self)
+        # set a default value
+        self.result = None
+        self.find_args = find_args
+
+    def run(self):
+        args = self.find_args
+        self.result = args[0]._find_function_def_nodes(args[1], args[2], args[3], args[4])
 
 class ControlFlowGraph:
     def __init__(self, function_to_locate: str = None):
@@ -58,7 +73,7 @@ class ControlFlowGraph:
                                 capture_output=True)
 
         json_import_tree = json.loads(output.stdout.decode("utf-8"))
-        self._imports = copy.deepcopy(json_import_tree)
+        self._imports = json_import_tree
 
     def _parse_and_resolve(self, ast_chunk: ast.AST,
                            context: typing.List[str],
@@ -204,6 +219,8 @@ class ControlFlowGraph:
 
         imports = import_visitor.get_imports()
 
+        started_threads = []
+
         for import_name, import_details in imports.items():
             if import_name not in imports_analyzed:
                 imports_analyzed[import_name] = True
@@ -220,14 +237,14 @@ class ControlFlowGraph:
                         syntax_tree: ast.Module = ast.parse(
                                                     source_content.read(),
                                                     import_path)
-                        other_tree = copy.deepcopy(syntax_tree)
-
-                        (definitions, names) = self._find_function_def_nodes(
-                                        other_tree,
-                                        import_path,
-                                        class_type,
-                                        imports_analyzed)
-                        for idx, definition in enumerate(definitions):
+                        new_thread = FunctionDefNodesFinder(find_args=(self, syntax_tree, import_path, class_type, imports_analyzed,))
+                        new_thread.start()
+                        started_threads.append(new_thread)
+        
+        for started_thread in started_threads:
+            started_thread.join()
+            (definitions, names) = started_thread.result
+            for idx, definition in enumerate(definitions):
                             result.append(definition)
                             result_names.append(names[idx])
 
