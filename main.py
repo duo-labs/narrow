@@ -16,6 +16,11 @@ parser.add_argument(
     help='indicate whether you want to display a CFG after running.',
     default=False, required=False)
 
+parser.add_argument(
+    '--max-print-depth',
+    help='indicate how many levels of the CFG you want to print.',
+    default=None, required=False)
+
 args = parser.parse_args()
 targets = []
 
@@ -38,7 +43,10 @@ graph = cfg.ControlFlowGraph(targets[0])
 graph.construct_from_file(args.file, True)
 
 if args.print_cfg:
-    graph.print_graph_matplotlib()
+    depth = None
+    if args.max_print_depth:
+        depth = int(args.max_print_depth)
+    graph.print_graph_matplotlib(depth)
 
 detect_status = graph.did_detect()
 if detect_status is False:

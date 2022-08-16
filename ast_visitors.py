@@ -1,66 +1,93 @@
-import ast
-import copy
-
-
-class FunctionDefVisitor(ast.NodeVisitor):
+class TreeSitterFunctionDefVisitor():
     def __init__(self):
         self._funcs = []
 
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        if node.name not in self._funcs:
-            self._funcs.append({
-                "node": copy.deepcopy(node),
-                "name": node.name
-            })
+    def visit(self, node):
+        current_node = node
+
+        if current_node.type == 'function_definition':
+            func_name = current_node.child_by_field_name(
+                'name').text.decode('utf-8')
+            if func_name not in self._funcs:
+                self._funcs.append({
+                    "node": node,
+                    "name": func_name
+                })
+        else:
+            if current_node.children:
+                for child in current_node.children:
+                    self.visit(child)
 
     def get_functions(self):
         return self._funcs
 
 
-class ClassDefVisitor(ast.NodeVisitor):
+class TreeSitterClassDefVisitor():
     def __init__(self):
         self.initalizers = []
 
-    def visit_ClassDef(self, node: ast.ClassDef):
-        func_visitor = FunctionDefVisitor()
-        func_visitor.visit(node)
+    def visit(self, node):
+        current_node = node
 
-        funcs = func_visitor.get_functions()
-
-        for func in funcs:
-            if '__init__' == func["name"]:
-                self.initalizers.append({
-                    "node": copy.deepcopy(func['node']),
-                    "class": node.name
-                })
+        if current_node.type == 'class_definition':
+            func_visitor = TreeSitterFunctionDefVisitor()
+            func_visitor.visit(current_node)
+            funcs = func_visitor.get_functions()
+            for func in funcs:
+                if '__init__' == func["name"]:
+                    self.initalizers.append({
+                        "node": func['node'],
+                        "class": current_node.child_by_field_name('name').text.decode('utf-8')
+                    })
+        else:
+            if current_node.children:
+                for child in current_node.children:
+                    self.visit(child)
 
     def get_initalizer(self):
         return self.initalizers
 
 
-class ImportVisitor(ast.NodeVisitor):
+class TreeSitterImportVisitor():
     def __init__(self):
         self._imports = {}
 
-    def visit_Import(self, node: ast.Import):
-        for alias in node.names:
-            if alias.name not in self._imports:
-                self._imports[alias.name] = {
+    def visit(self, node):
+        current_node = node
+
+        if current_node.type == 'import_from_statement':
+            module_name = current_node.child_by_field_name(
+                'module_name').text.decode('utf-8')
+            alias_name = current_node.child_by_field_name('name')
+            level = 0
+            if module_name.startswith('.'):
+                module_name = module_name[1:]
+                level = 1
+            if alias_name:
+                alias_name = alias_name.text.decode('utf-8')
+                full_key = module_name + '.' + alias_name
+                if full_key not in self._imports:
+                    self._imports[full_key] = {
+                        'module': module_name,
+                        'name': alias_name,
+                        'node': current_node.child_by_field_name('name'),
+                        'level': level
+                    }
+
+        elif current_node.type == 'import_statement':
+            alias_name = current_node.child_by_field_name(
+                'name').text.decode('utf-8')
+            if alias_name not in self._imports:
+                self._imports[alias_name] = {
                     'module': '',
-                    'name': alias.name,
-                    'node': copy.deepcopy(alias),
+                    'name': alias_name,
+                    'node': current_node,
                     'level': None
                 }
-
-    def visit_ImportFrom(self, node: ast.ImportFrom):
-        for alias in node.names:
-            if node.module:
-                self._imports[node.module + '.' + alias.name] = {
-                    'module': node.module,
-                    'name': alias.name,
-                    'node': copy.deepcopy(alias),
-                    'level': node.level
-                }
+        else:
+            if current_node.children:
+                for child in current_node.children:
+                    self.visit(child)
 
     def get_imports(self):
         return self._imports

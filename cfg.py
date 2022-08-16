@@ -1,6 +1,5 @@
 import ast
 import typing
-import copy
 import subprocess
 import json
 import mimetypes
@@ -10,11 +9,14 @@ import cache
 import networkx
 import threading
 from matplotlib import pyplot as plt
-
+from tree_sitter import Language, Parser
+import os
 
 # Args should be:
 # [0] -> ControlFlowGraph Object
-# [1:4] -> Args to _find_function_def_nodes
+# [1:4] -> Args to _find_function_def_nodes_tree_sitter
+
+
 class FunctionDefNodesFinder(threading.Thread):
     def __init__(self, find_args):
         threading.Thread.__init__(self)
@@ -24,7 +26,9 @@ class FunctionDefNodesFinder(threading.Thread):
 
     def run(self):
         args = self.find_args
-        self.result = args[0]._find_function_def_nodes(args[1], args[2], args[3], args[4])
+        self.result = args[0]._find_function_def_nodes_tree_sitter(
+            args[1], args[2], args[3], args[4])
+
 
 class ControlFlowGraph:
     def __init__(self, function_to_locate: str = None):
@@ -35,20 +39,38 @@ class ControlFlowGraph:
         # Data structure from pydeps
         self._imports: typing.Dict[str, typing.Dict[str, typing.Any]] = {}
         self._cache = cache.Cache()
+        self.parser = None
 
     # Function responsible for constructing a CFG given an entry file.
     #   only_file: If True, only builds a CFG contained in a single file.
     #              External references are noted as such but not resolved.
     def construct_from_file(self, file_path: str, only_file=False):
+        self._resolve_module_imports(file_path)
+
         with open(file_path, mode='r') as source_content:
-            syntax_tree: ast.Module = ast.parse(source_content.read(),
-                                                file_path)
-            self._root_tree = copy.deepcopy(syntax_tree)
+            dir_path = os.path.dirname(os.path.realpath(__file__))
 
-            self._resolve_module_imports(file_path)
+            Language.build_library(
+                # Store the library in the `build` directory
+                dir_path + '/build/my-languages.so',
 
-            self._parse_and_resolve(syntax_tree, ['__narrow_entry__'],
-                                    file_path)
+                # Include one or more languages
+                [
+                    dir_path + '/tree-sitter-python'
+                ]
+            )
+
+            PY_LANGUAGE = Language(
+                dir_path + '/build/my-languages.so', 'python')
+            self.parser = Parser()
+            self.parser.set_language(PY_LANGUAGE)
+            syntax_tree = self.parser.parse(
+                source_content.read().encode('utf-8'))
+            self._root_tree = syntax_tree.root_node
+            print(syntax_tree)
+
+            self._parse_and_resolve_tree_sitter(
+                syntax_tree.root_node, ['__narrow_entry__'], file_path)
 
             if self._detected is False:
                 print('Did not find {} in code'.format(
@@ -60,8 +82,10 @@ class ControlFlowGraph:
     def print_graph_to_stdout(self):
         print(self._graph.get_expanded_graph())
 
-    def print_graph_matplotlib(self):
+    def print_graph_matplotlib(self, max_depth=None):
         networkx_data = self._graph.get_networkx_digraph()
+        networkx_data = networkx.dfs_tree(
+            networkx_data, source='__narrow_entry__', depth_limit=max_depth)
 
         networkx.draw_spring(networkx_data, with_labels=True)
 
@@ -75,52 +99,97 @@ class ControlFlowGraph:
         json_import_tree = json.loads(output.stdout.decode("utf-8"))
         self._imports = json_import_tree
 
-    def _parse_and_resolve(self, ast_chunk: ast.AST,
-                           context: typing.List[str],
-                           current_file_location: str):
+    def _parse_and_resolve_tree_sitter(self, ast_chunk, context: typing.List[str], current_file_location: str):
         assert(self._root_tree is not None)
         if self._detected:
             # We're done early. Stop parsing
             return
+        if not ast_chunk.is_named:
+            # Annomymous nodes are for complete syntax trees which we don't care about
+            return
 
-        if isinstance(ast_chunk, ast.Call):
-            func_name: typing.Optional[str] = None
-            if isinstance(ast_chunk.func, ast.Name):
-                func_name = ast_chunk.func.id
-            elif isinstance(ast_chunk.func, ast.Subscript):
-                # TODO Unsure how to handle this yet...
-                print("Skipped something I probably shouldn't")
-                pass
-            elif isinstance(ast_chunk.func, ast.Attribute):
-                func_name = ast_chunk.func.attr
-            elif isinstance(ast_chunk.func, ast.Call):
-                self._parse_and_resolve(ast_chunk.func, context,
-                                        current_file_location)
-            elif isinstance(ast_chunk.func, ast.BoolOp):
-                left = ast_chunk.func.values[0]
-                right = ast_chunk.func.values[1]
-                self._parse_and_resolve(left, context, current_file_location)
-                self._parse_and_resolve(right, context, current_file_location)
-            elif isinstance(ast_chunk.func, ast.BinOp):
-                self._parse_and_resolve(ast_chunk.func, context, current_file_location)
+        if ast_chunk.type == 'module':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+        elif ast_chunk.type == 'import_statement':
+            pass  # Don't care
+        elif ast_chunk.type == 'expression_statement':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+        elif ast_chunk.type == 'if_statement':
+            condition = ast_chunk.child_by_field_name('condition')
+            consequence = ast_chunk.child_by_field_name('consequence')
+            alternative = ast_chunk.child_by_field_name('alternative')
+            self._parse_and_resolve_tree_sitter(
+                condition, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                consequence, context, current_file_location)
+
+            if alternative:
+                self._parse_and_resolve_tree_sitter(
+                    alternative, context, current_file_location)
+        elif ast_chunk.type == 'else_clause':
+            self._parse_and_resolve_tree_sitter(
+                ast_chunk.child_by_field_name('body'), context, current_file_location)
+        elif ast_chunk.type == 'elif_clause':
+            condition = ast_chunk.child_by_field_name('condition')
+            consequence = ast_chunk.child_by_field_name('consequence')
+            alternative = ast_chunk.child_by_field_name('alternative')
+            self._parse_and_resolve_tree_sitter(
+                condition, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                consequence, context, current_file_location)
+
+            if alternative:
+                self._parse_and_resolve_tree_sitter(
+                    alternative, context, current_file_location)
+
+        elif ast_chunk.type == 'assignment':
+            left_node = ast_chunk.child_by_field_name('left')
+            right_node = ast_chunk.child_by_field_name('right')
+            self._parse_and_resolve_tree_sitter(
+                right_node, context, current_file_location)
+        elif ast_chunk.type == 'call':
+            function = ast_chunk.child_by_field_name('function')
+
+            if function.type == 'identifier':
+                func_name = function.text.decode('utf-8')
+            elif function.type == 'subscript':
+                print("Subscript")
+                print(function.sexp())
+                print(function.child_by_field_name(
+                    'value').text.decode('utf-8'))
+                print(function.child_by_field_name(
+                    'subscript').text.decode('utf-8'))
+                # Don't handle this for now
+                func_name = None
             else:
-                raise ValueError("Unknown Call.func type:" +
-                                 str(ast_chunk.func))
+                #function_caller_obj = function.child_by_field_name('object').text.decode('utf-8')
+                if function.child_by_field_name('attribute'):
+                    func_name = function.child_by_field_name(
+                        'attribute').text.decode('utf-8')
+                else:
+                    func_name = None
+            args = ast_chunk.child_by_field_name('arguments')
 
             if func_name:
                 if not self.function_exists(func_name):
                     self._graph.add_node_to_graph(context, func_name)
 
-                    call_defs = self._find_function_def_nodes_matching_name(
+                    call_defs = self._find_function_def_nodes_matching_name_tree_sitter(
                         func_name, self._root_tree, current_file_location)
+
                     for call_def in call_defs:
-                        self._parse_and_resolve(call_def,
-                                                context +
-                                                ['unknown.' + func_name],
-                                                current_file_location)
+                        self._parse_and_resolve_tree_sitter(call_def.child_by_field_name('body'),
+                                                            context +
+                                                            ['unknown.' +
+                                                                func_name],
+                                                            current_file_location)
 
                         if (call_def and
-                                call_def.name == self._function_to_locate):
+                                call_def.child_by_field_name('name').text.decode('utf-8') == self._function_to_locate):
                             print('Found {} in code'.format(
                                 self._function_to_locate))
                             self._detected = True
@@ -131,46 +200,140 @@ class ControlFlowGraph:
                     self._detected = True
                     return
 
-        if isinstance(ast_chunk, ast.BinOp):
-            # Need to recursively check left and right sides
-            self._parse_and_resolve(
-                ast_chunk.left, context, current_file_location)
-            self._parse_and_resolve(
-                ast_chunk.right, context, current_file_location)
-        elif isinstance(ast_chunk, ast.If):
-            # Need to check orelse in addition to generic body
-            self._parse_and_resolve(
-                ast_chunk.test, context, current_file_location)
-            for child in ast_chunk.orelse:
-                self._parse_and_resolve(child, context, current_file_location)
-
-        # More work?
-        if hasattr(ast_chunk, 'body'):
-            if isinstance(typing.cast(typing.Any, ast_chunk).body, list):
-                for child in typing.cast(typing.Any, ast_chunk).body:
-                    # Check for FunctionDefs because we don't want to walk
-                    # these until we find a function call to them.
-                    if not isinstance(child, ast.FunctionDef):
-                        self._parse_and_resolve(
-                            child, context, current_file_location)
-        if hasattr(ast_chunk, 'args'):
-            if isinstance(typing.cast(typing.Any, ast_chunk).args, list):
-                for child in typing.cast(typing.Any, ast_chunk).args:
-                    self._parse_and_resolve(
+            if args:
+                for child in args.children:
+                    self._parse_and_resolve_tree_sitter(
                         child, context, current_file_location)
-        elif hasattr(ast_chunk, 'value'):
-            self._parse_and_resolve(
-                typing.cast(typing.Any, ast_chunk).value, context,
-                current_file_location)
+        elif ast_chunk.type == 'list':
+            pass  # Don't care?
 
-    def _find_function_def_nodes_matching_name(self, func_name: str,
-                                               starting_ast: ast.AST,
-                                               current_file_location: str,
-                                               class_type: str = 'unknown'):
-        (nodes, names) = self._find_function_def_nodes(starting_ast,
-                                                       current_file_location,
-                                                       class_type,
-                                                       imports_analyzed={})
+        elif ast_chunk.type == 'block':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+
+        elif ast_chunk.type == 'augmented_assignment':
+            left_node = ast_chunk.child_by_field_name('left')
+            right_node = ast_chunk.child_by_field_name('right')
+            self._parse_and_resolve_tree_sitter(
+                right_node, context, current_file_location)
+        elif ast_chunk.type == 'comment':
+            pass  # Don't care
+        elif ast_chunk.type == 'import_from_statement':
+            pass  # Don't care
+        elif ast_chunk.type == 'class_definition':
+            pass  # Don't care
+        elif ast_chunk.type == 'integer':
+            pass  # Don't care
+        elif ast_chunk.type == 'string':
+            pass  # Don't care
+        elif ast_chunk.type == 'false':
+            pass  # Don't care
+        elif ast_chunk.type == 'float':
+            pass  # Don't care
+        elif ast_chunk.type == 'none':
+            pass  # Don't care
+        elif ast_chunk.type == 'true':
+            pass  # Don't care
+        elif ast_chunk.type == 'tuple':
+            pass  # Don't care
+        elif ast_chunk.type == 'subscript':
+            pass  # Don't care
+        elif ast_chunk.type == 'list_splat':
+            pass  # Don't care
+
+        elif ast_chunk.type == 'keyword_argument':
+            pass  # Don't care
+        elif ast_chunk.type == 'not_operator':
+            argument = ast_chunk.child_by_field_name('argument')
+            self._parse_and_resolve_tree_sitter(
+                argument, context, current_file_location)
+ 
+        elif ast_chunk.type == 'conditional_expression':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+
+        elif ast_chunk.type == 'for_statement':
+            left_node = ast_chunk.child_by_field_name('left')
+            right_node = ast_chunk.child_by_field_name('right')
+            body_node = ast_chunk.child_by_field_name('body')
+
+            self._parse_and_resolve_tree_sitter(
+                left_node, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                right_node, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                body_node, context, current_file_location)
+
+        elif ast_chunk.type == 'raise_statement':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+        elif ast_chunk.type == 'parenthesized_expression':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+        elif ast_chunk.type == 'while_statement':
+            condition = ast_chunk.child_by_field_name('condition')
+            body = ast_chunk.child_by_field_name('body')
+            self._parse_and_resolve_tree_sitter(
+                condition, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                body, context, current_file_location)
+
+
+        elif ast_chunk.type == 'function_definition':
+            pass  # Don't care
+
+        elif ast_chunk.type == 'return_statement':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+        elif ast_chunk.type == 'binary_operator':
+            left_node = ast_chunk.child_by_field_name('left')
+            right_node = ast_chunk.child_by_field_name('right')
+
+            self._parse_and_resolve_tree_sitter(
+                left_node, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                right_node, context, current_file_location)
+        elif ast_chunk.type == 'boolean_operator':
+            left_node = ast_chunk.child_by_field_name('left')
+            right_node = ast_chunk.child_by_field_name('right')
+
+            self._parse_and_resolve_tree_sitter(
+                left_node, context, current_file_location)
+            self._parse_and_resolve_tree_sitter(
+                right_node, context, current_file_location)
+        elif ast_chunk.type == 'try_statement':
+            self._parse_and_resolve_tree_sitter(
+                ast_chunk.child_by_field_name('body'), context, current_file_location)
+
+        elif ast_chunk.type == 'identifier':
+            pass  # Don't care
+        elif ast_chunk.type == 'with_statement':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+        elif ast_chunk.type == 'with_clause':
+            for child in ast_chunk.children:
+                self._parse_and_resolve_tree_sitter(
+                    child, context, current_file_location)
+
+        else:
+            # Unknown, unhandled node
+            #print(ast_chunk.sexp())
+            pass
+
+    def _find_function_def_nodes_matching_name_tree_sitter(self, func_name: str,
+                                                           starting_ast,
+                                                           current_file_location: str,
+                                                           class_type: str = 'unknown'):
+        (nodes, names) = self._find_function_def_nodes_tree_sitter(starting_ast,
+                                                                   current_file_location,
+                                                                   class_type,
+                                                                   imports_analyzed={})
 
         result = []
 
@@ -183,20 +346,23 @@ class ControlFlowGraph:
     # Find all possible matching Function Definition nodes and return them,
     # if possible
     # This may include a Class' __init__ if it exists.
-    def _find_function_def_nodes(self, starting_ast: ast.AST,
-                                 current_file_location: str,
-                                 class_type: str = 'unknown',
-                                 imports_analyzed: dict = {}):
 
-        result: typing.List[ast.AST] = []
-        result_names: typing.List[str] = []
+    def _find_function_def_nodes_tree_sitter(self, starting_ast,
+                                             current_file_location: str,
+                                             class_type: str = 'unknown',
+                                             imports_analyzed: dict = {}):
+
+        result: typing.List[any] = []
+        result_names: typing.List[any] = []
 
         (cache_nodes, cache_names) = self._cache.get_function_defs(
             current_file_location, starting_ast)
         if cache_nodes is not None:
             return (cache_nodes, cache_names)
 
-        func_visitor = ast_visitors.FunctionDefVisitor()
+        # Find functions defined in this file
+
+        func_visitor = ast_visitors.TreeSitterFunctionDefVisitor()
         func_visitor.visit(starting_ast)
 
         funcs = func_visitor.get_functions()
@@ -204,8 +370,8 @@ class ControlFlowGraph:
             result_names.append(func['name'])
             result.append(func["node"])
 
-        # Check for class definitions
-        class_visitor = ast_visitors.ClassDefVisitor()
+        # Find functions defined in classes in this file
+        class_visitor = ast_visitors.TreeSitterClassDefVisitor()
         class_visitor.visit(starting_ast)
         init_funcs = class_visitor.get_initalizer()
 
@@ -213,8 +379,8 @@ class ControlFlowGraph:
             result_names.append(init_func['class'])
             result.append(init_func["node"])
 
-        # Not in current file, check imported files
-        import_visitor = ast_visitors.ImportVisitor()
+        # Find imports and recursively check those files
+        import_visitor = ast_visitors.TreeSitterImportVisitor()
         import_visitor.visit(starting_ast)
 
         imports = import_visitor.get_imports()
@@ -226,34 +392,39 @@ class ControlFlowGraph:
                 imports_analyzed[import_name] = True
 
                 import_path = self._find_entry_for_import(
-                                import_details['name'],
-                                current_file_location,
-                                import_details['module'],
-                                import_details['level'])
+                    import_details['name'],
+                    current_file_location,
+                    import_details['module'],
+                    import_details['level'])
                 if import_path and \
                    mimetypes.guess_type(import_path)[0] == 'text/x-python':
 
                     with open(import_path, mode='r') as source_content:
-                        syntax_tree: ast.Module = ast.parse(
-                                                    source_content.read(),
-                                                    import_path)
+                        tree = self.parser.parse(
+                            source_content.read().encode('utf-8'))
+                        syntax_tree = tree.root_node
+
                         new_thread = FunctionDefNodesFinder(find_args=(self, syntax_tree, import_path, class_type, imports_analyzed,))
                         new_thread.start()
                         started_threads.append(new_thread)
-        
+
+
         for started_thread in started_threads:
             started_thread.join()
-            (definitions, names) = started_thread.result
-            for idx, definition in enumerate(definitions):
-                            result.append(definition)
-                            result_names.append(names[idx])
+
+            (sub_res, sub_names) = started_thread.result
+            for idx, sub_res in enumerate(sub_res):
+                result.append(sub_res)
+                result_names.append(sub_names[idx])
 
         self._cache.store_function_defs(
             current_file_location, starting_ast, (result, result_names))
+
         return (result, result_names)
 
     # Returns the file on disk corresponding to the import if it can be found
     # Otherwise returns None
+
     def _find_entry_for_import(self, import_name: str,
                                current_file_location: str,
                                module: str = '',

@@ -1,4 +1,6 @@
 image: docker:stable
+variables: 
+  GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
   - test
