@@ -10,4 +10,10 @@ pkgs.stdenv.mkDerivation {
     pkgs.git
     pkgs.vim
   ];
+
+  shellHook = /* sh */ ''
+    python3 -m venv env
+    source ./env/bin/activate
+    unset PYTHONPATH
+  '';
 }

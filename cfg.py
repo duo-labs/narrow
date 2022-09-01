@@ -11,6 +11,7 @@ import threading
 from matplotlib import pyplot as plt
 from tree_sitter import Language, Parser
 import os
+import pathlib
 
 # Args should be:
 # [0] -> ControlFlowGraph Object
@@ -40,12 +41,20 @@ class ControlFlowGraph:
         self._imports: typing.Dict[str, typing.Dict[str, typing.Any]] = {}
         self._cache = cache.Cache()
         self.parser = None
+        self.symlinked_entrypoint = None
+
+    def __del__(self):
+        if self.symlinked_entrypoint:
+            # A symlink was created, delete it
+            os.unlink(self.symlinked_entrypoint)
 
     # Function responsible for constructing a CFG given an entry file.
     #   only_file: If True, only builds a CFG contained in a single file.
     #              External references are noted as such but not resolved.
     def construct_from_file(self, file_path: str, only_file=False):
-        self._resolve_module_imports(file_path)
+        new_file_path = self.mitigate_extensionless_file(file_path)
+
+        self._resolve_module_imports(new_file_path)
 
         with open(file_path, mode='r') as source_content:
             dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -76,6 +85,19 @@ class ControlFlowGraph:
                 print('Did not find {} in code'.format(
                     self._function_to_locate))
 
+
+    # Returns the new target location
+    def mitigate_extensionless_file(self, file_path: str) -> str:
+        path = pathlib.Path(file_path)
+        if path.suffix == '':
+            # Create symlink so ModuleFinder works. As of Sep 2022 it fails on extensionless files
+            os.symlink(file_path, file_path + '.py')
+            self.symlinked_entrypoint = file_path + '.py'
+            return file_path + ".py"
+
+        return file_path
+        
+
     def did_detect(self):
         return self._detected
 
@@ -95,6 +117,9 @@ class ControlFlowGraph:
         output = subprocess.run(['pydeps', file_path, '--show-deps', '--pylib',
                                 '--no-show', '--max-bacon', '0', '--no-dot'],
                                 capture_output=True)
+
+        print(output.stdout.decode("utf-8"))
+        print(output.stderr.decode("utf-8"))
 
         json_import_tree = json.loads(output.stdout.decode("utf-8"))
         self._imports = json_import_tree
