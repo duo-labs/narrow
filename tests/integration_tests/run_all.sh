@@ -7,3 +7,4 @@ set -e
 ./simple.sh
 ./requests_case.sh
 ./with.sh
+./ambiguous_module.sh

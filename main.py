@@ -21,6 +21,11 @@ parser.add_argument(
     help='indicate how many levels of the CFG you want to print.',
     default=None, required=False)
 
+parser.add_argument(
+    '--module-backtracking',
+    help='indicates far back in the filesystem you want to support searching for modules.',
+    default=2, required=False)
+
 args = parser.parse_args()
 targets = []
 
@@ -39,7 +44,7 @@ if len(targets) == 0:
     print("No targets detected. Exiting.")
     exit(1)
 
-graph = cfg.ControlFlowGraph(targets[0])
+graph = cfg.ControlFlowGraph(targets[0], args.module_backtracking)
 graph.construct_from_file(args.file, True)
 
 if args.print_cfg:

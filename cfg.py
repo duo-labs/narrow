@@ -32,10 +32,12 @@ class FunctionDefNodesFinder(threading.Thread):
 
 
 class ControlFlowGraph:
-    def __init__(self, function_to_locate: str = None):
+    def __init__(self, function_to_locate: str = None, module_backtrace_max=2):
         self._graph = internal_cfg.InternalGraphRepesentation()
         self._root_tree: typing.Optional[ast.AST] = None
         self._function_to_locate = function_to_locate
+        self.module_backtrace_max = module_backtrace_max
+
         self._detected = False
         # Data structure from pydeps
         self._imports: typing.Dict[str, typing.Dict[str, typing.Any]] = {}
@@ -52,6 +54,7 @@ class ControlFlowGraph:
     #   only_file: If True, only builds a CFG contained in a single file.
     #              External references are noted as such but not resolved.
     def construct_from_file(self, file_path: str, only_file=False):
+    
         new_file_path = self.mitigate_extensionless_file(file_path)
 
         self._resolve_module_imports(new_file_path)
@@ -115,7 +118,7 @@ class ControlFlowGraph:
 
     def _resolve_module_imports(self, file_path: str):
         output = subprocess.run(['pydeps', file_path, '--show-deps', '--pylib',
-                                '--no-show', '--max-bacon', '0', '--no-dot'],
+                                '--no-show', '--max-bacon', '0', '--no-dot', '--include-missing'],
                                 capture_output=True)
 
         print(output.stdout.decode("utf-8"))
@@ -416,22 +419,23 @@ class ControlFlowGraph:
             if import_name not in imports_analyzed:
                 imports_analyzed[import_name] = True
 
-                import_path = self._find_entry_for_import(
+                import_paths = self._find_entries_for_import(
                     import_details['name'],
                     current_file_location,
                     import_details['module'],
                     import_details['level'])
-                if import_path and \
-                   mimetypes.guess_type(import_path)[0] == 'text/x-python':
+                for import_path in import_paths:
+                    if import_path and \
+                    mimetypes.guess_type(import_path)[0] == 'text/x-python':
 
-                    with open(import_path, mode='r') as source_content:
-                        tree = self.parser.parse(
-                            source_content.read().encode('utf-8'))
-                        syntax_tree = tree.root_node
+                        with open(import_path, mode='r') as source_content:
+                            tree = self.parser.parse(
+                                source_content.read().encode('utf-8'))
+                            syntax_tree = tree.root_node
 
-                        new_thread = FunctionDefNodesFinder(find_args=(self, syntax_tree, import_path, class_type, imports_analyzed,))
-                        new_thread.start()
-                        started_threads.append(new_thread)
+                            new_thread = FunctionDefNodesFinder(find_args=(self, syntax_tree, import_path, class_type, imports_analyzed,))
+                            new_thread.start()
+                            started_threads.append(new_thread)
 
 
         for started_thread in started_threads:
@@ -447,13 +451,14 @@ class ControlFlowGraph:
 
         return (result, result_names)
 
-    # Returns the file on disk corresponding to the import if it can be found
-    # Otherwise returns None
+    # Returns the files on disk possibly corresponding to the import if they can be found
 
-    def _find_entry_for_import(self, import_name: str,
+    def _find_entries_for_import(self, import_name: str,
                                current_file_location: str,
                                module: str = '',
-                               level: int = 0):
+                               level: int = 0) -> typing.List[str]:
+        results = []
+
         # Try using pydeps
         import_loc = None
         if level == 1:
@@ -462,7 +467,9 @@ class ControlFlowGraph:
                 if import_data['path'] == current_file_location:
                     for imported_name in import_data['imports']:
                         if imported_name.endswith(module):
-                            return self._imports[imported_name]['path']
+                            import_path = self._imports[imported_name]['path']
+                            if import_path != None:
+                                results = [ self._imports[imported_name]['path'] ]
 
         if (module != '' and module + '.' + import_name in self._imports):
             import_loc = module + '.' + import_name
@@ -470,9 +477,43 @@ class ControlFlowGraph:
             import_loc = import_name
 
         if import_loc:
-            return self._imports[import_loc]['path']
+            results = [self._imports[import_loc]['path']]
 
+        if module != '' and len(results) == 0:
+            # Try to find a folder that looks like a matching module
+            for root, dirs, _ in os.walk(self.get_folder_back_n_dirs(pathlib.Path(current_file_location), self.module_backtrace_max)):
+                for dir in dirs:
+                    if dir == module:
+                        print("Found folder: " + dir)
+
+                        matching_file = self.get_file_in_folder(import_name, os.path.join(root, dir))
+                        if matching_file is not None:
+                            results.append(matching_file)
+                        
+        return results
+
+    def get_folder_back_n_dirs(self, path: pathlib.Path, n: int):
+        res = path
+
+        for i in range(n):
+            res = res.parent
+
+        return res
+
+
+    def get_file_in_folder(self, name, root):
+        for root, _, files in os.walk(pathlib.Path(root)):
+            for file in files:
+                new_file = pathlib.Path(file)
+
+                if new_file.name.split(new_file.suffix)[0]  == name:
+                    fullpath = os.path.join(root, new_file)
+                    return fullpath
+
+            break
+        
         return None
+
 
     def function_exists(self, func_name: str):
         return self._graph.has_function(func_name)
