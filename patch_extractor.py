@@ -75,10 +75,12 @@ class PatchExtractor:
         return self.find_targets_in_string(patch_contents, language)
 
     def find_targets_in_ndv_entry(self, cve_id: str):
-        resp = requests.get(
-            'https://www.cve.org/api/?action=getCveById&cveId=' + cve_id)
+        #resp = requests.get(
+        #    'https://www.cve.org/api/?action=getCveById&cveId=' + cve_id)
 
-        json_data = resp.json()
+        resp = requests.get('https://services.nvd.nist.gov/rest/json/cve/1.0/' + cve_id + '?addOns=dictionaryCpes')
+
+        json_data = resp.json()['result']['CVE_Items'][0]['cve']
 
         references = json_data['references']
 
