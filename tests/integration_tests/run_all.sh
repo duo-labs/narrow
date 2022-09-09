@@ -8,3 +8,4 @@ set -e
 ./requests_case.sh
 ./with.sh
 ./ambiguous_module.sh
+./function_in_object.sh

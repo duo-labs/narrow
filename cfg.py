@@ -348,6 +348,11 @@ class ControlFlowGraph:
             for child in ast_chunk.children:
                 self._parse_and_resolve_tree_sitter(
                     child, context, current_file_location)
+        elif ast_chunk.type == 'dictionary':
+            for child in ast_chunk.children:
+                value = child.child_by_field_name('value')
+                if value is not None:
+                    self._parse_and_resolve_tree_sitter(child.child_by_field_name('value'), context, current_file_location)
 
         else:
             # Unknown, unhandled node
