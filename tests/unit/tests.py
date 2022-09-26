@@ -78,11 +78,18 @@ def test_file_extraction():
 def test_github_pr_extraction():
     extractor = patch_extractor.PatchExtractor()
 
-    targets = extractor.find_targets_in_github_pull_request(
+    targets = extractor.find_targets_in_github_pull_request_or_commit(
         'https://github.com/archlinux/archinstall/pull/1194')
 
     assert('select_disk' in targets)
 
+def test_github_commit_extraction():
+    extractor = patch_extractor.PatchExtractor()
+
+    targets = extractor.find_targets_in_github_pull_request_or_commit(
+        'https://github.com/lxml/lxml/commit/86368e9cf70a0ad23cccd5ee32de847149af0c6f')
+
+    assert(len(targets) > 0)
 
 def test_nvd_extraction():
     extractor = patch_extractor.PatchExtractor()
