@@ -9,3 +9,4 @@ set -e
 ./with.sh
 ./ambiguous_module.sh
 ./function_in_object.sh
+./import_code.sh

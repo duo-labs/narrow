@@ -127,7 +127,40 @@ class ControlFlowGraph:
         json_import_tree = json.loads(output.stdout.decode("utf-8"))
         self._imports = json_import_tree
 
+
+    # A helper function for _parse_and_resolve_tree_sitter
+    # Responsible for resolving an import statement and trying to recursively analysis the root contents of that file
+    def _resolve_import_into_callgraph(self, import_type_node, context: typing.List[str], current_file_location: str):
+        import_visitor = ast_visitors.TreeSitterImportVisitor()
+        import_visitor.visit(import_type_node)
+
+        imports = import_visitor.get_imports()
+
+        for import_name, import_details in imports.items():
+            import_paths = self._find_entries_for_import(
+                import_details['name'],
+                current_file_location,
+                import_details['module'],
+                import_details['level'])
+
+            for import_path in import_paths:
+                if import_path and \
+                mimetypes.guess_type(import_path)[0] == 'text/x-python':
+                    if not self.function_exists(import_name):
+
+                        with open(import_path, mode='r') as source_content:
+                            tree = self.parser.parse(
+                                source_content.read().encode('utf-8'))
+                            sub_syntax_tree = tree.root_node
+                            # Treat import as function call
+                            self._graph.add_node_to_graph(context, import_name)
+                            self._parse_and_resolve_tree_sitter(sub_syntax_tree, context +
+                                                            ['unknown.' +
+                                                                import_name], import_path)
+
     def _parse_and_resolve_tree_sitter(self, ast_chunk, context: typing.List[str], current_file_location: str):
+
+
         assert(self._root_tree is not None)
         if self._detected:
             # We're done early. Stop parsing
@@ -141,7 +174,7 @@ class ControlFlowGraph:
                 self._parse_and_resolve_tree_sitter(
                     child, context, current_file_location)
         elif ast_chunk.type == 'import_statement':
-            pass  # Don't care
+            self._resolve_import_into_callgraph(ast_chunk, context, current_file_location)
         elif ast_chunk.type == 'expression_statement':
             for child in ast_chunk.children:
                 self._parse_and_resolve_tree_sitter(
@@ -248,7 +281,7 @@ class ControlFlowGraph:
         elif ast_chunk.type == 'comment':
             pass  # Don't care
         elif ast_chunk.type == 'import_from_statement':
-            pass  # Don't care
+            self._resolve_import_into_callgraph(ast_chunk, context, current_file_location)
         elif ast_chunk.type == 'class_definition':
             pass  # Don't care
         elif ast_chunk.type == 'integer':
@@ -480,6 +513,8 @@ class ControlFlowGraph:
             import_loc = module + '.' + import_name
         elif (module == '' and import_name in self._imports):
             import_loc = import_name
+        elif (module in self._imports and self._imports[module]['path']):
+            import_loc = module
 
         if import_loc:
             results = [self._imports[import_loc]['path']]

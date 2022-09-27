@@ -52,7 +52,7 @@ class TreeSitterImportVisitor():
     def __init__(self):
         self._imports = {}
 
-    def visit(self, node):
+    def visit(self, node, allow_recursion=True):
         current_node = node
 
         if current_node.type == 'import_from_statement':
@@ -84,7 +84,7 @@ class TreeSitterImportVisitor():
                     'node': current_node,
                     'level': None
                 }
-        else:
+        elif allow_recursion:
             if current_node.children:
                 for child in current_node.children:
                     self.visit(child)
