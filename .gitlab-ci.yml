@@ -6,13 +6,13 @@ stages:
   - test
 
 audit:
-  image: debian:10-slim
+  image: python:3.8.3-slim-buster
   stage: test
   script:
     - apt update && apt install python3 python3-pip build-essential zlib1g zlib1g-dev libjpeg-dev libpng-dev libblas-dev liblapack-dev libatlas-base-dev gfortran --yes
-    - python3 -m pip install -r requirements.txt
-    - python3 -m pip install -r requirements-dev.txt
-    - pip-audit -f json -o audit.json  || true
+    - python3 -m pip install -r requirements.lock
+    - python3 -m pip install -r requirements-dev.lock
+    - pip-audit -r requirements.lock -s osv -l -f json -o audit.json  || true
     - python3 utils/audit.py audit.json
   allow_failure: true
   tags:
@@ -22,12 +22,12 @@ audit:
       - merge_requests
 
 test:
-  image: debian:10-slim
+  image: python:3.8.3-slim-buster
   stage: test
   script:
     - apt update && apt install python3 python3-pip build-essential zlib1g zlib1g-dev libjpeg-dev libpng-dev libblas-dev liblapack-dev libatlas-base-dev gfortran --yes
-    - python3 -m pip install -r requirements.txt
-    - python3 -m pip install -r requirements-dev.txt
+    - python3 -m pip install -r requirements.lock
+    - python3 -m pip install -r requirements-dev.lock
     - python3 -m pytest tests/unit/tests.py
     - cd ./tests/integration_tests
     - ./run_all.sh

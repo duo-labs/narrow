@@ -11,6 +11,7 @@ import threading
 from matplotlib import pyplot as plt
 from tree_sitter import Language, Parser
 import os
+import sys
 import pathlib
 
 # Args should be:
@@ -36,6 +37,7 @@ class ControlFlowGraph:
         self._graph = internal_cfg.InternalGraphRepesentation()
         self._root_tree: typing.Optional[ast.AST] = None
         self._function_to_locate = function_to_locate
+        self._files_entirely_analyzed = set()
         self.module_backtrace_max = module_backtrace_max
 
         self._detected = False
@@ -54,12 +56,20 @@ class ControlFlowGraph:
     #   only_file: If True, only builds a CFG contained in a single file.
     #              External references are noted as such but not resolved.
     def construct_from_file(self, file_path: str, only_file=False):
+        # We may need to recursively scan thousands of modules. Python itself does
+        # provide native support for tail-end recursion which means that the default recursionlimit (1000)
+        # is sometimes inadequate. For example, it's not sufficient to run narrow on narrow
+        # For now we set a larger recursionlimit but really we need to re-write this algorithm to
+        # be an iterative algorithm.
+        sys.setrecursionlimit(15000)
+
     
         new_file_path = self.mitigate_extensionless_file(file_path)
 
         self._resolve_module_imports(new_file_path)
 
         with open(file_path, mode='r') as source_content:
+            self._files_entirely_analyzed.add(file_path)
             dir_path = os.path.dirname(os.path.realpath(__file__))
 
             Language.build_library(
@@ -79,7 +89,6 @@ class ControlFlowGraph:
             syntax_tree = self.parser.parse(
                 source_content.read().encode('utf-8'))
             self._root_tree = syntax_tree.root_node
-            print(syntax_tree)
 
             self._parse_and_resolve_tree_sitter(
                 syntax_tree.root_node, ['__narrow_entry__'], file_path)
@@ -107,10 +116,17 @@ class ControlFlowGraph:
     def print_graph_to_stdout(self):
         print(self._graph.get_expanded_graph())
 
-    def print_graph_matplotlib(self, max_depth=None):
+    def print_graph_matplotlib(self, max_depth=None, show_all_paths=False):
         networkx_data = self._graph.get_networkx_digraph()
-        networkx_data = networkx.dfs_tree(
+
+        if show_all_paths:
+            networkx_data = networkx.dfs_tree(
             networkx_data, source='__narrow_entry__', depth_limit=max_depth)
+        else:
+            # By default we want to show only the path(s) to the target, not all paths
+            inverted_data = networkx_data.reverse()
+            inverted_data = networkx.dfs_tree(inverted_data, source="unknown." + self._function_to_locate, depth_limit=max_depth)
+            networkx_data = inverted_data.reverse()
 
         networkx.draw_spring(networkx_data, with_labels=True)
 
@@ -120,9 +136,6 @@ class ControlFlowGraph:
         output = subprocess.run(['pydeps', file_path, '--show-deps', '--pylib',
                                 '--no-show', '--max-bacon', '0', '--no-dot', '--include-missing'],
                                 capture_output=True)
-
-        print(output.stdout.decode("utf-8"))
-        print(output.stderr.decode("utf-8"))
 
         json_import_tree = json.loads(output.stdout.decode("utf-8"))
         self._imports = json_import_tree
@@ -146,8 +159,8 @@ class ControlFlowGraph:
             for import_path in import_paths:
                 if import_path and \
                 mimetypes.guess_type(import_path)[0] == 'text/x-python':
-                    if not self.function_exists(import_name):
-
+                    if not self.function_exists(import_name) and import_path not in self._files_entirely_analyzed:
+                        self._files_entirely_analyzed.add(import_path)
                         with open(import_path, mode='r') as source_content:
                             tree = self.parser.parse(
                                 source_content.read().encode('utf-8'))
@@ -210,8 +223,11 @@ class ControlFlowGraph:
         elif ast_chunk.type == 'assignment':
             left_node = ast_chunk.child_by_field_name('left')
             right_node = ast_chunk.child_by_field_name('right')
-            self._parse_and_resolve_tree_sitter(
-                right_node, context, current_file_location)
+            # Every now and then there are assignments with no "right" node.
+            # Very unclear in what situations this occurs
+            if right_node:
+                self._parse_and_resolve_tree_sitter(
+                    right_node, context, current_file_location)
         elif ast_chunk.type == 'call':
             function = ast_chunk.child_by_field_name('function')
 
@@ -524,8 +540,6 @@ class ControlFlowGraph:
             for root, dirs, _ in os.walk(self.get_folder_back_n_dirs(pathlib.Path(current_file_location), self.module_backtrace_max)):
                 for dir in dirs:
                     if dir == module:
-                        print("Found folder: " + dir)
-
                         matching_file = self.get_file_in_folder(import_name, os.path.join(root, dir))
                         if matching_file is not None:
                             results.append(matching_file)

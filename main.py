@@ -22,6 +22,11 @@ parser.add_argument(
     default=None, required=False)
 
 parser.add_argument(
+    '--print-all-paths',
+    help='If set to true, shows all paths from the entrypoint, not only paths to the target.',
+    default=False, required=False)
+
+parser.add_argument(
     '--module-backtracking',
     help='indicates far back in the filesystem you want to support searching for modules.',
     default=2, required=False)
@@ -51,7 +56,7 @@ if args.print_cfg:
     depth = None
     if args.max_print_depth:
         depth = int(args.max_print_depth)
-    graph.print_graph_matplotlib(depth)
+    graph.print_graph_matplotlib(depth, args.print_all_paths)
 
 detect_status = graph.did_detect()
 if detect_status is False:
