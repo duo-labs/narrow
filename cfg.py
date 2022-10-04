@@ -525,9 +525,9 @@ class ControlFlowGraph:
                             if import_path != None:
                                 results = [ self._imports[imported_name]['path'] ]
 
-        if (module != '' and module + '.' + import_name in self._imports):
+        if (module != '' and module + '.' + import_name in self._imports and self._imports[module + '.' + import_name]['path']):
             import_loc = module + '.' + import_name
-        elif (module == '' and import_name in self._imports):
+        elif (module == '' and import_name in self._imports and self._imports[import_name]['path']):
             import_loc = import_name
         elif (module in self._imports and self._imports[module]['path']):
             import_loc = module
@@ -543,6 +543,11 @@ class ControlFlowGraph:
                         matching_file = self.get_file_in_folder(import_name, os.path.join(root, dir))
                         if matching_file is not None:
                             results.append(matching_file)
+                        elif os.path.exists(os.path.join(os.path.join(root, dir), '__init__.py')):
+                            # There might be an __init__.py file
+                            results.append(os.path.join(os.path.join(root, dir), '__init__.py'))
+                            
+
                         
         return results
 

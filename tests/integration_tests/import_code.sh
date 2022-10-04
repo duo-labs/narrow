@@ -14,5 +14,13 @@ else
 	exit 1
 fi
 
+if python3 ../../main.py ../projects/import_code/main.py --target implict_and_unique; then
+	echo "Found implict_and_unique succesfully"
+else
+	echo "Should've detected implict_and_unique"
+	exit 1
+fi
+
+
 echo "PASS"
 exit 0

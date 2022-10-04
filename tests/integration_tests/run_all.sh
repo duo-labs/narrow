@@ -5,7 +5,8 @@ set -e
 ./complex.sh
 ./recursive.sh
 ./simple.sh
-./requests_case.sh
+# ./requests_case.sh  TODO: Re-enable one day
+# ./pyyaml_case.sh  TODO: Re-enable one day
 ./with.sh
 ./ambiguous_module.sh
 ./function_in_object.sh
