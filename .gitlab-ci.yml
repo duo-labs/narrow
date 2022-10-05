@@ -13,7 +13,7 @@ audit:
     - python3 -m pip install -r requirements.lock
     - python3 -m pip install -r requirements-dev.lock
     - pip-audit -r requirements.lock -s osv -l -f json -o audit.json  || true
-    - python3 utils/audit.py audit.json
+    - python3 utils/audit.py audit.json main.py
   allow_failure: true
   tags:
     - appsec-runner

@@ -5,7 +5,9 @@ import os
 import sys
 import json
 import subprocess
+
 audit_file = sys.argv[1]
+entry_file = sys.argv[2]
 
 command = ["python3", "main.py"]
 confirmed_count = 0
@@ -18,7 +20,7 @@ with open(audit_file, 'r') as fd:
         for vuln in dependency['vulns']:
             vuln_id = vuln['id']
             print("Checking vulnerability ID: {}".format(vuln_id))
-            resp = subprocess.run(command + ['--osv-id', vuln_id, 'main.py'], capture_output=True)
+            resp = subprocess.run(command + ['--osv-id', vuln_id, entry_file], capture_output=True)
 
             if resp.returncode == 0:
                 print("CONFIRMED: Vulnerability ID: {}".format(vuln_id))
