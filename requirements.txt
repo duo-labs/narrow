@@ -1,7 +1,9 @@
-networkx
-matplotlib
-mypy
-pydeps
-scipy
+networkx==2.8.6
+matplotlib==3.6.0
+mypy==0.981
+pydeps==1.10.24
+scipy==1.9.1
 requests==2.18.4
-tree_sitter
+tree-sitter==0.20.1
+jsonschema
+cvsslib

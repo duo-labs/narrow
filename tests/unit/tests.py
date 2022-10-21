@@ -1,6 +1,9 @@
+import json
+import tempfile
 import cfg
 import patch_extractor
 import pathlib
+import narrower
 
 def test_single_file():
     graph = cfg.ControlFlowGraph()
@@ -104,4 +107,26 @@ def test_ghsa_extraction():
 
     targets = extractor.find_targets_in_osv_entry('GHSA-g3rq-g295-4j3m')
     assert('urlize' in targets)
+
+def test_generate_output_should_reject_bad_formats():
+    fp = tempfile.TemporaryFile()
+    to_dump = json.dumps([1])
+    fp.write(to_dump.encode('utf-8'))
+    fp.seek(0)
+    nar = narrower.Narrower(fp, 2, "test")
+    try:
+        nar.generate_output()
+        assert(False)
+    except:
+        assert(True)
+
+def test_drop_severity():
+    fp = tempfile.TemporaryFile()
+
+    init_val = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+    nar = narrower.Narrower(fp, 2, "test")
+    new_val = nar.drop_severity(init_val)
+
+    assert("RC:U" in new_val)
+    assert("E:U" in new_val)
 
