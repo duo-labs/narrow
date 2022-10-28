@@ -12,3 +12,4 @@ set -e
 ./ambiguous_module.sh
 ./function_in_object.sh
 ./import_code.sh
+./requests_krefst.sh

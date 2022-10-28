@@ -4,7 +4,6 @@
 # For now the following formats are supported:
 #   1. https://wiki.duosec.org/display/Security/Creating+and+Using+SEP+Plugins#CreatingandUsingSEPPlugins-sca-with-vuln-findings:SoftwareCompositionAnalysisResults
 import copy
-import enum
 import json
 from typing import List
 import jsonschema
@@ -12,6 +11,177 @@ import jsonschema
 from patch_extractor import PatchExtractor
 import cfg
 import cvsslib
+
+STANDARD_SCA_SCHEMA = {
+                "$schema": "https://json-schema.org/draft/2019-09/schema",
+                "$id": "http://example.com/example.json",
+                "type": "array",
+                "default": [],
+                "title": "Root Schema",
+                "items": {
+                    "type": "object",
+                    "default": {},
+                    "title": "A Schema",
+                    "required": [
+                        "package",
+                        "vulns"
+                    ],
+                    "properties": {
+                        "commit": {
+                            "type": "string",
+                            "default": "",
+                            "title": "The commit Schema",
+                            "examples": [
+                                "string"
+                            ]
+                        },
+                        "version": {
+                            "type": "string",
+                            "default": "",
+                            "title": "The version Schema",
+                            "examples": [
+                                "string"
+                            ]
+                        },
+                        "package": {
+                            "type": "object",
+                            "default": {},
+                            "title": "The package Schema",
+                            "required": [
+                                "name",
+                                "ecosystem"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "default": "",
+                                    "title": "The name Schema",
+                                    "examples": [
+                                        "string"
+                                    ]
+                                },
+                                "ecosystem": {
+                                    "type": "string",
+                                    "default": "",
+                                    "title": "The ecosystem Schema",
+                                    "examples": [
+                                        "string"
+                                    ]
+                                },
+                                "purl": {
+                                    "type": "string",
+                                    "default": "",
+                                    "title": "The purl Schema",
+                                    "examples": [
+                                        "string"
+                                    ]
+                                }
+                            },
+                            "examples": [{
+                                "name": "string",
+                                "ecosystem": "string",
+                                "purl": "string"
+                            }]
+                        },
+                        "vulns": {
+                            "type": "array",
+                            "default": [],
+                            "title": "The vulns Schema",
+                            "items": {
+                                "$ref": "https://raw.githubusercontent.com/ossf/osv-schema/050d98092a994662cbf9daa19c7e99a5c7dcccec/validation/schema.json"
+                            },
+                            "examples": [
+                                []
+                            ]
+                        }
+                    },
+                    "examples": [{
+                        "commit": "string",
+                        "version": "string",
+                        "package": {
+                            "name": "string",
+                            "ecosystem": "string",
+                            "purl": "string"
+                        },
+                        "vulns": []
+                    }]
+                },
+                "examples": [
+                    [{
+                        "commit": "string",
+                        "version": "string",
+                        "package": {
+                            "name": "string",
+                            "ecosystem": "string",
+                            "purl": "string"
+                        },
+                        "vulns": []
+                    }]
+                ]
+            }
+
+KREFST_OUT_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "$id": "http://example.com/example.json",
+    "title": "Root Schema",
+    "type": "array",
+    "default": [],
+    "items": {
+        "title": "A Schema",
+        "type": "object",
+        "properties": {
+            "name": {
+                "title": "The name Schema",
+                "type": "string"
+            },
+            "version": {
+                "title": "The version Schema",
+                "type": "string"
+            },
+            "description": {
+                "title": "The description Schema",
+                "type": ["string", "null"]
+            },
+            "vulnerabilities": {
+                "title": "The vulnerabilities Schema",
+                "type": "array",
+                "items": {
+                    "title": "A Schema",
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "title": "The title Schema",
+                            "type": "string"
+                        },
+                        "overview": {
+                            "title": "The overview Schema",
+                            "type": "string"
+                        },
+                        "cve": {
+                            "title": "The cve Schema",
+                            "type": "string"
+                        },
+                        "cvssScore": {
+                            "title": "The cvssScore Schema",
+                            "type": [
+                                "number"
+                            ]
+                        },
+                        "updateToVersion": {
+                            "title": "The updateToVersion Schema",
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "metadata": {
+                "title": "The metadata Schema",
+                "type": "object",
+                "properties": {}
+            }
+        }
+    }
+}
 
 
 class Narrower:
@@ -24,114 +194,54 @@ class Narrower:
     def generate_output(self):
         contents = self.input_file_fd.read()
         contents_as_json = json.loads(contents)
-        jsonschema.validate(contents_as_json, {
-            "$schema": "https://json-schema.org/draft/2019-09/schema",
-            "$id": "http://example.com/example.json",
-            "type": "array",
-            "default": [],
-            "title": "Root Schema",
-            "items": {
-                "type": "object",
-                "default": {},
-                "title": "A Schema",
-                "required": [
-                    "package",
-                    "vulns"
-                ],
-                "properties": {
-                    "commit": {
-                        "type": "string",
-                        "default": "",
-                        "title": "The commit Schema",
-                        "examples": [
-                            "string"
-                        ]
-                    },
-                    "version": {
-                        "type": "string",
-                        "default": "",
-                        "title": "The version Schema",
-                        "examples": [
-                            "string"
-                        ]
-                    },
-                    "package": {
-                        "type": "object",
-                        "default": {},
-                        "title": "The package Schema",
-                        "required": [
-                            "name",
-                            "ecosystem"
-                        ],
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "default": "",
-                                "title": "The name Schema",
-                                "examples": [
-                                    "string"
-                                ]
-                            },
-                            "ecosystem": {
-                                "type": "string",
-                                "default": "",
-                                "title": "The ecosystem Schema",
-                                "examples": [
-                                    "string"
-                                ]
-                            },
-                            "purl": {
-                                "type": "string",
-                                "default": "",
-                                "title": "The purl Schema",
-                                "examples": [
-                                    "string"
-                                ]
-                            }
-                        },
-                        "examples": [{
-                            "name": "string",
-                            "ecosystem": "string",
-                            "purl": "string"
-                        }]
-                    },
-                    "vulns": {
-                        "type": "array",
-                        "default": [],
-                        "title": "The vulns Schema",
-                        "items": {
-                            "$ref": "https://raw.githubusercontent.com/ossf/osv-schema/050d98092a994662cbf9daa19c7e99a5c7dcccec/validation/schema.json"
-                        },
-                        "examples": [
-                            []
-                        ]
-                    }
-                },
-                "examples": [{
-                    "commit": "string",
-                    "version": "string",
-                    "package": {
-                        "name": "string",
-                        "ecosystem": "string",
-                        "purl": "string"
-                    },
-                    "vulns": []
-                }]
-            },
-            "examples": [
-                [{
-                    "commit": "string",
-                    "version": "string",
-                    "package": {
-                        "name": "string",
-                        "ecosystem": "string",
-                        "purl": "string"
-                    },
-                    "vulns": []
-                }]
-            ]
-        })
+        krefst_format = False
+        try:
+            jsonschema.validate(contents_as_json, STANDARD_SCA_SCHEMA )
+        except:
+            # Might be a krefst format
+            jsonschema.validate(contents_as_json, KREFST_OUT_SCHEMA )
+            krefst_format = True
 
+        if krefst_format:
+            return self.generate_output_krefst(contents_as_json)
+        else:
+            return self.generate_output_standard(contents_as_json)
+
+    def generate_output_krefst(self, contents_as_json):
+        test_results = {}
+
+        for idx, component in enumerate(contents_as_json):
+            name = component['name']
+            version = component['version']
+            for vuln_idx, vuln in enumerate(component['vulnerabilities']):
+                vuln_id = vuln['cve']
+                cvssScore = vuln['cvssScore']
+
+                if vuln_id not in test_results:
+                    print("Looking for: " + vuln_id)
+                    targets = []
+                    extractor = PatchExtractor()
+                    targets += extractor.find_targets_in_osv_entry(vuln_id)
+
+                    if len(targets) > 0:
+                        target = targets[0]
+
+                        print("Multiple targets detected. We will try only the first one: " +
+                            target)
+
+                        graph = cfg.ControlFlowGraph(targets[0], self.module_backtracking)
+                        graph.construct_from_file(self.target_file_path, False)
+                        detect_status = graph.did_detect()
+                        if detect_status == False:
+                            test_results[vuln_id] = max(cvssScore - 2.5, 0)
+                
+                # We may have a vuln_id now. Decide whether to reduce priority
+                if vuln_id in test_results:
+                    contents_as_json[idx]['vulnerabilities'][vuln_idx]['cvssScore'] = test_results[vuln_id]
+
+        return contents_as_json
+
+    def generate_output_standard(self, contents_as_json):
         vulns_to_verify = set()
         vulns_with_no_path = set()
         # Validation okay. Continue

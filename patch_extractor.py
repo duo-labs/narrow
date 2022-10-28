@@ -76,12 +76,17 @@ class PatchExtractor:
         if not url.endswith('.diff'):
             diff_url = url + '.diff'
 
-        resp = requests.get(diff_url)
-        patch_contents = resp.text
+        try:
+            resp = requests.get(diff_url)
+            patch_contents = resp.text
 
-        language = self.infer_language()
+            language = self.infer_language()
 
-        return self.find_targets_in_string(patch_contents, language)
+            return self.find_targets_in_string(patch_contents, language)
+        except TimeoutError:
+            # Timed out. Just assume no targets could be found
+            return []
+
 
     def find_targets_in_ndv_entry(self, cve_id: str):
         #resp = requests.get(

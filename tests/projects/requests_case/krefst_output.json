@@ -1,0 +1,316 @@
+[
+    {
+        "name": "Babel",
+        "version": "2.1.1",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "Babel.Locale in Babel before 2.9.1 allows attackers to load arbitrary locale .dat files (containing serialized Python objects) via directory traversal, leading to code execution.",
+                "overview": "Babel.Locale in Babel before 2.9.1 allows attackers to load arbitrary locale .dat files (containing serialized Python objects) via directory traversal, leading to code execution.",
+                "cve": "CVE-2021-42771",
+                "cvssScore": 7.2,
+                "updateToVersion": "2.10.3"
+            }
+        ],
+        "metadata": {}
+    },
+    {
+        "name": "octoprint",
+        "version": "1.8.2",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "Certain versions of Octoprint from Octoprint contain the following vulnerability: If an attacker comes into the possession of a victim's OctoPrint session cookie through whatever means, the attacker can use this cookie to authenticate as long as the victim's account exists.",
+                "overview": "Certain versions of Octoprint from Octoprint contain the following vulnerability: If an attacker comes into the possession of a victim's OctoPrint session cookie through whatever means, the attacker can use this cookie to authenticate as long as the victim's account exists.",
+                "cvssScore": 4.1,
+                "updateToVersion": "1.8.5",
+                "cve": "CVE-2022-2888"
+            }
+        ]
+    },
+    {
+        "name": "asn1crypto",
+        "version": "0.24.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "bcrypt",
+        "version": "3.1.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "beautifulsoup4",
+        "version": "4.5.1",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "bson",
+        "version": "0.5.10",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "cffi",
+        "version": "1.14.4",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "cryptography",
+        "version": "2.3",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "In the cryptography package before 3.3.2 for Python, certain sequences of update calls to symmetrically encrypt multi-GB values could result in an integer overflow and buffer overflow, as demonstrated by the Fernet class.",
+                "overview": "In the cryptography package before 3.3.2 for Python, certain sequences of update calls to symmetrically encrypt multi-GB values could result in an integer overflow and buffer overflow, as demonstrated by the Fernet class.",
+                "cve": "CVE-2020-36242",
+                "cvssScore": 6.4,
+                "updateToVersion": "38.0.2"
+            },
+            {
+                "title": "python-cryptography is vulnerable to information disclosure due to the existence of a timing-based side channel. A remote attacker could potentially recover sensitive information from RSA protected communications by conducting statistical analysis.",
+                "overview": "python-cryptography is vulnerable to information disclosure due to the existence of a timing-based side channel. A remote attacker could potentially recover sensitive information from RSA protected communications by conducting statistical analysis.",
+                "cve": "BDSA-2020-3158",
+                "cvssScore": 5.0,
+                "updateToVersion": "38.0.2"
+            }
+        ],
+        "metadata": {}
+    },
+    {
+        "name": "decorator",
+        "version": "4.3.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "defusedxml",
+        "version": "0.6.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "duo_client",
+        "version": "4.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "duo_web",
+        "version": "1.1",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "google-api-python-client",
+        "version": "1.5.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "httplib2",
+        "version": "0.13.1",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "httplib2 is vulnerable to denial-of-service (DoS) due to a high CPU consumption when parsing crafted headers sent by a malicious server.",
+                "overview": "httplib2 is vulnerable to denial-of-service (DoS) due to a high CPU consumption when parsing crafted headers sent by a malicious server.",
+                "cve": "BDSA-2021-0320",
+                "cvssScore": 5.0,
+                "updateToVersion": "20.5.0"
+            },
+            {
+                "title": "httplib2 is vulnerable to HTTP request smuggling due to the improper parsing of client requests. A remote attacker could send multiple hidden requests to a server by including certain characters in the body of a request.",
+                "overview": "httplib2 is vulnerable to HTTP request smuggling due to the improper parsing of client requests. A remote attacker could send multiple hidden requests to a server by including certain characters in the body of a request.",
+                "cve": "BDSA-2020-1215",
+                "cvssScore": 7.5,
+                "updateToVersion": "20.5.0"
+            }
+        ],
+        "metadata": {}
+    },
+    {
+        "name": "idna",
+        "version": "2.7",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "ipaddress",
+        "version": "1.0.14",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "isodate",
+        "version": "0.5.4",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "lxml",
+        "version": "4.6.2",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "Lxml contains a vulnerability that can lead to NULL pointer dereference. An attacker can exploit this flaw by supplying a crafted input and cause a denial-of-service (DoS).\n\n**Note** This vulnerability is only applicable for installations that are used together with libxml2 **v2.9.10** through **v2.9.14**.",
+                "overview": "Lxml contains a vulnerability that can lead to NULL pointer dereference. An attacker can exploit this flaw by supplying a crafted input and cause a denial-of-service (DoS).\n\n**Note** This vulnerability is only applicable for installations that are used together with libxml2 **v2.9.10** through **v2.9.14**.",
+                "cve": "BDSA-2022-1873",
+                "cvssScore": 5.0,
+                "updateToVersion": "4.9.1"
+            },
+            {
+                "title": "lxml does not properly sanitize script content in the styling code and SVG embedded scripts. This could be exploited to run JavaScript execution attacks, such as cross-site scripting (XSS).",
+                "overview": "lxml does not properly sanitize script content in the styling code and SVG embedded scripts. This could be exploited to run JavaScript execution attacks, such as cross-site scripting (XSS).",
+                "cve": "BDSA-2021-3762",
+                "cvssScore": 4.3,
+                "updateToVersion": "4.9.1"
+            },
+            {
+                "title": "Lxml has a cross-site scripting (XSS) vulnerability due to an absence of correct parameter input validation. A remote attacker could insert JavaScript code and steal a victim's session tokens, cookies, or other sensitive information.",
+                "overview": "Lxml has a cross-site scripting (XSS) vulnerability due to an absence of correct parameter input validation. A remote attacker could insert JavaScript code and steal a victim's session tokens, cookies, or other sensitive information.",
+                "cve": "BDSA-2021-0707",
+                "cvssScore": 4.9,
+                "updateToVersion": "4.9.1"
+            }
+        ],
+        "metadata": {}
+    },
+    {
+        "name": "netaddr",
+        "version": "0.8.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "oauth2client",
+        "version": "2.2.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "pip",
+        "version": "20.2.3",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "Python PIP is vulnerable to the installation of arbitrary revisions due to the improper handling of unicode separator characters. An attacker could cause a different git revision to be installed than what was intended by using a maliciously crafted reference field.",
+                "overview": "Python PIP is vulnerable to the installation of arbitrary revisions due to the improper handling of unicode separator characters. An attacker could cause a different git revision to be installed than what was intended by using a maliciously crafted reference field.",
+                "cve": "BDSA-2021-1527",
+                "cvssScore": 3.5,
+                "updateToVersion": "22.3"
+            }
+        ],
+        "metadata": {}
+    },
+    {
+        "name": "pyOpenSSL",
+        "version": "18.0.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "pyasn1",
+        "version": "0.1.9",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "pyasn1-modules",
+        "version": "0.0.5",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "pycparser",
+        "version": "2.17",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "python-dateutil",
+        "version": "2.8.1",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "pytz",
+        "version": "2015.4",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "rsa",
+        "version": "3.4",
+        "description": null,
+        "vulnerabilities": [
+            {
+                "title": "python-rsa is vulnerable to information exposure due to weaknesses in processing of PKCS#1 v**1.5** ciphertext, which may allow adaptive chosen-ciphertext (Bleichenbacher) attacks. This could allow an attacker to deduce sensitive information from RSA-encrypted ciphertext using the RSA decryption API.",
+                "overview": "python-rsa is vulnerable to information exposure due to weaknesses in processing of PKCS#1 v**1.5** ciphertext, which may allow adaptive chosen-ciphertext (Bleichenbacher) attacks. This could allow an attacker to deduce sensitive information from RSA-encrypted ciphertext using the RSA decryption API.",
+                "cve": "BDSA-2020-3345",
+                "cvssScore": 5.0,
+                "updateToVersion": "4.9"
+            },
+            {
+                "title": "Python-RSA ignores zero bytes prepended to the ciphertext and decrypts it anyway. This could allow an attacker to infer that Python-RSA is being used within an application, or help manipulate the application's behaviour due to the increased ciphertext length.",
+                "overview": "Python-RSA ignores zero bytes prepended to the ciphertext and decrypts it anyway. This could allow an attacker to infer that Python-RSA is being used within an application, or help manipulate the application's behaviour due to the increased ciphertext length.",
+                "cve": "BDSA-2020-1347",
+                "cvssScore": 5.0,
+                "updateToVersion": "4.9"
+            }
+        ],
+        "metadata": {}
+    },
+    {
+        "name": "setuptools",
+        "version": "49.2.1",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "setuptools_scm",
+        "version": "1.15.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "six",
+        "version": "1.15.0",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    },
+    {
+        "name": "uritemplate",
+        "version": "0.6",
+        "description": null,
+        "vulnerabilities": [],
+        "metadata": {}
+    }
+]
