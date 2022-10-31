@@ -130,3 +130,12 @@ def test_drop_severity():
     assert("RC:U" in new_val)
     assert("E:U" in new_val)
 
+
+def test_krefst_file_validation():
+
+    with open((pathlib.Path(__file__).parent.resolve()).joinpath("krefst.json").as_posix(), 'r') as fp:
+        contents = fp.read()
+        contents_as_json = json.loads(contents)
+
+        nar = narrower.Narrower(fp, 2, "test")
+        assert(nar.validate_input_data_and_is_krefst(contents_as_json) is True)

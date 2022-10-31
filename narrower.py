@@ -169,7 +169,7 @@ KREFST_OUT_SCHEMA = {
                         },
                         "updateToVersion": {
                             "title": "The updateToVersion Schema",
-                            "type": "string"
+                            "type": ["string", "null"]
                         }
                     }
                 }
@@ -190,22 +190,29 @@ class Narrower:
         self.module_backtracking = module_backtracking
         self.target_file_path = target_file_path
 
-    # Returns an object containing a "narrowed" JSON representation of the input file.
-    def generate_output(self):
-        contents = self.input_file_fd.read()
-        contents_as_json = json.loads(contents)
-        krefst_format = False
+    # Raises an exception if we should not continue. Otherwise, returns true
+    # is the file was in krefst format and false otherwise.
+    def validate_input_data_and_is_krefst(self, contents_as_json):
         try:
             jsonschema.validate(contents_as_json, STANDARD_SCA_SCHEMA )
         except:
             # Might be a krefst format
             jsonschema.validate(contents_as_json, KREFST_OUT_SCHEMA )
-            krefst_format = True
+            return True
+
+        return False
+        
+    # Returns an object containing a "narrowed" JSON representation of the input file.
+    def generate_output(self):
+        contents = self.input_file_fd.read()
+        contents_as_json = json.loads(contents)
+        krefst_format = self.validate_input_data_and_is_krefst(contents_as_json)
 
         if krefst_format:
             return self.generate_output_krefst(contents_as_json)
         else:
             return self.generate_output_standard(contents_as_json)
+
 
     def generate_output_krefst(self, contents_as_json):
         test_results = {}
