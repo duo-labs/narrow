@@ -4,6 +4,7 @@ set -e
 ./single_file.sh
 ./complex.sh
 ./recursive.sh
+./arg_count.sh
 ./simple.sh
 ./requests_case.sh
 # ./requests_case_hard.sh  TODO: Re-enable one day

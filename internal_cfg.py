@@ -1,3 +1,4 @@
+import math
 import typing
 import networkx
 
@@ -47,6 +48,7 @@ class InternalGraphRepesentation:
     # Duplicates are automatically prevneted, so you can call this without
     # checking is_in_graph()
     def add_node_to_graph(self, context: typing.List[str], next_node: str,
+                          arg_count: int,
                           type: str = 'unknown'):
         if len(context) == 0:
             raise ValueError("context should never be empty. \
@@ -57,7 +59,7 @@ class InternalGraphRepesentation:
         if caller not in self._graph:
             raise ValueError("The caller should already exist in the graph")
 
-        resolved_node = type + '.' + next_node
+        resolved_node = type + '.' + next_node + '.' + str(arg_count)
 
         self._graph[caller]['next'].add(resolved_node)
 
@@ -86,15 +88,20 @@ class InternalGraphRepesentation:
 
     @staticmethod
     def remove_class(function_name: str):
-        if len(function_name.split('.')) == 2:
-            return function_name.split('.')[1]
+        parts = function_name.split('.')
+        sans_type = parts[1:len(parts)]
+        return '.'.join(sans_type)
 
-        return function_name
+    @staticmethod
+    def remove_arg_count(function_name: str):
+        parts = function_name.split('.')
+        sans_count = parts[0:len(parts) - 1]
+        return '.'.join(sans_count)
 
     # Checks whether a function exists. If strict is False,
     # ignores the Class.
-    def has_function(self, function_name: str, strict: bool = False):
-        if strict and function_name in self._graph:
+    def has_function(self, function_name: str, arg_count: typing.Optional[int], strict: bool = False):
+        if strict and function_name + '.' + str(arg_count) in self._graph:
             return True
 
         if not strict:
@@ -102,7 +109,13 @@ class InternalGraphRepesentation:
             keys = map(
                 lambda key: InternalGraphRepesentation.remove_class(key), keys)
 
-            if function_name in keys:
+            if arg_count is None:
+                keys = map(
+                    lambda key: InternalGraphRepesentation.remove_arg_count(key), keys)
+  
+                if function_name in keys:
+                    return True
+            elif function_name + '.' + str(arg_count) in keys:
                 return True
 
         return False

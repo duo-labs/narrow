@@ -159,17 +159,17 @@ class ControlFlowGraph:
             for import_path in import_paths:
                 if import_path and \
                 mimetypes.guess_type(import_path)[0] == 'text/x-python':
-                    if not self.function_exists(import_name) and import_path not in self._files_entirely_analyzed:
+                    if not self.function_exists(import_name, 0) and import_path not in self._files_entirely_analyzed:
                         self._files_entirely_analyzed.add(import_path)
                         with open(import_path, mode='r') as source_content:
                             tree = self.parser.parse(
                                 source_content.read().encode('utf-8'))
                             sub_syntax_tree = tree.root_node
                             # Treat import as function call
-                            self._graph.add_node_to_graph(context, import_name)
+                            self._graph.add_node_to_graph(context, import_name, 0)
                             self._parse_and_resolve_tree_sitter(sub_syntax_tree, context +
                                                             ['unknown.' +
-                                                                import_name], import_path)
+                                                                import_name + '.0'], import_path)
 
     def _parse_and_resolve_tree_sitter(self, ast_chunk, context: typing.List[str], current_file_location: str):
 
@@ -250,19 +250,23 @@ class ControlFlowGraph:
                 else:
                     func_name = None
             args = ast_chunk.child_by_field_name('arguments')
-
+            arg_count = 0
+            for arg in args.children:
+                if arg.is_named:
+                    arg_count += 1
+            
             if func_name:
-                if not self.function_exists(func_name):
-                    self._graph.add_node_to_graph(context, func_name)
+                if not self.function_exists(func_name, arg_count):
+                    self._graph.add_node_to_graph(context, func_name, arg_count)
 
                     call_defs = self._find_function_def_nodes_matching_name_tree_sitter(
-                        func_name, self._root_tree, current_file_location)
+                        func_name, self._root_tree, current_file_location, arg_count)
 
                     for call_def in call_defs:
                         self._parse_and_resolve_tree_sitter(call_def.child_by_field_name('body'),
                                                             context +
                                                             ['unknown.' +
-                                                                func_name],
+                                                                func_name + '.' + str(arg_count)],
                                                             current_file_location)
 
                         if (call_def and
@@ -411,6 +415,7 @@ class ControlFlowGraph:
     def _find_function_def_nodes_matching_name_tree_sitter(self, func_name: str,
                                                            starting_ast,
                                                            current_file_location: str,
+                                                           arg_count: int,
                                                            class_type: str = 'unknown'):
         (nodes, names) = self._find_function_def_nodes_tree_sitter(starting_ast,
                                                                    current_file_location,
@@ -421,7 +426,21 @@ class ControlFlowGraph:
 
         for idx, name in enumerate(names):
             if name == func_name:
-                result.append(nodes[idx])
+                function_def_params = nodes[idx].child_by_field_name('parameters')
+                param_count = 0
+                default_count = 0
+                for param in function_def_params.children:
+                    if param.is_named:
+                        # Ignore self
+                        if not param.text.decode('utf-8') == 'self':
+                            if param.type == 'identifier':
+                                param_count += 1
+                            elif 'default' in param.type :
+                                default_count += 1
+                        
+
+                if param_count == arg_count or (param_count < arg_count and (arg_count - param_count <= default_count)):
+                    result.append(nodes[idx])
 
         return result
 
@@ -574,5 +593,5 @@ class ControlFlowGraph:
         return None
 
 
-    def function_exists(self, func_name: str):
-        return self._graph.has_function(func_name)
+    def function_exists(self, func_name: str, arg_count: typing.Optional[int] = None):
+        return self._graph.has_function(func_name, arg_count)
