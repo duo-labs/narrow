@@ -139,3 +139,44 @@ def test_krefst_file_validation():
 
         nar = narrower.Narrower(fp, 2, "test")
         assert(nar.validate_input_data_and_is_krefst(contents_as_json) is True)
+
+def test_cyclone_dx_validation():
+
+    with open((pathlib.Path(__file__).parent.resolve()).joinpath("example_cyclonedx.json").as_posix(), 'r') as fp:
+        contents = fp.read()
+        contents_as_json = json.loads(contents)
+
+        nar = narrower.Narrower(fp, 2, "test")
+        assert(nar.validate_input_data_and_is_krefst(contents_as_json) is False)
+
+
+def test_cyclone_dx_output_alter():
+
+    class MockExtractor:
+        def find_targets_in_osv_entry(self, vuln):
+            return ['test']
+
+    class MockGraph:
+        def construct_from_file(self, path, only_file):
+            pass
+        
+        def did_detect(self):
+            return False
+
+    with open((pathlib.Path(__file__).parent.resolve()).joinpath("example_cyclonedx.json").as_posix(), 'r') as fp:
+        contents = fp.read()
+        contents_as_json = json.loads(contents)
+
+        nar = narrower.Narrower(fp, 2, "test")
+        nar._get_graph = lambda a, b: MockGraph()
+        nar._get_extractor = lambda: MockExtractor()
+        reduced = nar.generate_output_standard(contents_as_json) 
+
+        assert(reduced['vulnerabilities'][0]['analysis']['state'] == 'not_affected')
+        assert(reduced['vulnerabilities'][0]['analysis']['justification'] == 'code_not_reachable')
+
+        assert(len(reduced['vulnerabilities'][0]['ratings']) == 4)
+        assert('narrow' in reduced['vulnerabilities'][0]['ratings'][3]['source']['name'])
+        assert('AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N' in reduced['vulnerabilities'][0]['ratings'][3]['vector'])
+        assert('RC:U' in reduced['vulnerabilities'][0]['ratings'][3]['vector'])
+        assert('E:U' in reduced['vulnerabilities'][0]['ratings'][3]['vector'])
