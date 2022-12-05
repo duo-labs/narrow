@@ -1839,20 +1839,15 @@ class Narrower:
                 cvssScore = vuln['cvssScore']
 
                 if vuln_id not in test_results:
-                    print("Looking for: " + vuln_id)
                     targets = []
                     extractor = self._get_extractor()
                     targets += extractor.find_targets_in_osv_entry(vuln_id)
 
                     if len(targets) > 0:
-                        target = targets[0]
-
-                        print("Multiple targets detected. We will try only the first one: " +
-                            target)
-
-                        graph = self._get_graph(targets[0], self.module_backtracking)
+                        graph = self._get_graph(targets, self.module_backtracking)
                         graph.construct_from_file(self.target_file_path, False)
                         detect_status = graph.did_detect()
+
                         if detect_status == False:
                             test_results[vuln_id] = max(cvssScore - 2.5, 0)
                 
@@ -1874,25 +1869,21 @@ class Narrower:
         targets += extractor.find_targets_in_osv_entry(vuln_id)
 
         if len(targets) > 0:
-            target = targets[0]
+          graph = self._get_graph(targets, self.module_backtracking)
+          graph.construct_from_file(self.target_file_path, False)
+          detect_status = graph.did_detect()
+          if detect_status == False:
+              # Reduce severity and fill in analysis
+              contents_as_json['vulnerabilities'][vuln_idx]['analysis']['state'] = 'not_affected'
+              contents_as_json['vulnerabilities'][vuln_idx]['analysis']['justification'] = 'code_not_reachable'
+              reduced_vector = self.drop_severity(contents_as_json['vulnerabilities'][vuln_idx]['ratings'][0]['vector'])
+              contents_as_json['vulnerabilities'][vuln_idx]['ratings'].append({
+                "source": {
+                  "name": "narrow run on " + date.today().isoformat()
+                },
+                "vector": reduced_vector
+              })
 
-            print("Multiple targets detected. We will try only the first one: " +
-                target)
-
-            graph = self._get_graph(targets[0], self.module_backtracking)
-            graph.construct_from_file(self.target_file_path, False)
-            detect_status = graph.did_detect()
-            if detect_status == False:
-                # Reduce severity and fill in analysis
-                contents_as_json['vulnerabilities'][vuln_idx]['analysis']['state'] = 'not_affected'
-                contents_as_json['vulnerabilities'][vuln_idx]['analysis']['justification'] = 'code_not_reachable'
-                reduced_vector = self.drop_severity(contents_as_json['vulnerabilities'][vuln_idx]['ratings'][0]['vector'])
-                contents_as_json['vulnerabilities'][vuln_idx]['ratings'].append({
-                  "source": {
-                    "name": "narrow run on " + date.today().isoformat()
-                  },
-                  "vector": reduced_vector
-                })
         
       return contents_as_json
 

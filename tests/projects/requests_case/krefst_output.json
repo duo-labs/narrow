@@ -135,7 +135,7 @@
             {
                 "title": "httplib2 is vulnerable to HTTP request smuggling due to the improper parsing of client requests. A remote attacker could send multiple hidden requests to a server by including certain characters in the body of a request.",
                 "overview": "httplib2 is vulnerable to HTTP request smuggling due to the improper parsing of client requests. A remote attacker could send multiple hidden requests to a server by including certain characters in the body of a request.",
-                "cve": "BDSA-2020-1215",
+                "cve": "CVE-2021-21240",
                 "cvssScore": 7.5,
                 "updateToVersion": "20.5.0"
             }
@@ -188,6 +188,12 @@
                 "cve": "BDSA-2021-0707",
                 "cvssScore": 4.9,
                 "updateToVersion": "4.9.1"
+            },
+            {
+                "title": "lxml is a library for processing XML and HTML in the Python language. Prior to version 4.6.5, the HTML Cleaner in lxml.html lets certain crafted script content pass through, as well as script content in SVG files embedded using data URIs. Users that employ the HTML cleaner in a security relevant context should upgrade to lxml 4.6.5 to receive a patch. There are no known workarounds available.",
+                "overview": "lxml is a library for processing XML and HTML in the Python language. Prior to version 4.6.5, the HTML Cleaner in lxml.html lets certain crafted script content pass through, as well as script content in SVG files embedded using data URIs. Users that employ the HTML cleaner in a security relevant context should upgrade to lxml 4.6.5 to receive a patch. There are no known workarounds available.",
+                "cve": "CVE-2021-43818",
+                "cvssScore": 7.1
             }
         ],
         "metadata": {}

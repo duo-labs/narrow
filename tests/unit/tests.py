@@ -120,6 +120,12 @@ def test_generate_output_should_reject_bad_formats():
     except:
         assert(True)
 
+def test_cve_2021_43818():
+    extractor = patch_extractor.PatchExtractor()
+
+    targets = extractor.find_targets_in_ndv_entry("CVE-2021-43818")
+    assert(len(targets) > 0)
+
 def test_drop_severity():
     fp = tempfile.TemporaryFile()
 

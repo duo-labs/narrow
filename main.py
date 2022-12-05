@@ -71,15 +71,12 @@ if input_file:
         with open('narrow_output.json', 'w') as narrow_fp:
             narrow_fp.write(json.dumps(new_output))
 else:
-    if len(targets) > 1:
-        print("Multiple targets detected. We will try only the first one: " +
-            targets[0])
 
     if len(targets) == 0:
         print("No targets detected. Exiting.")
         exit(1)
 
-    graph = cfg.ControlFlowGraph(targets[0], args.module_backtracking)
+    graph = cfg.ControlFlowGraph(targets, args.module_backtracking)
     graph.construct_from_file(args.file, False)
 
     if args.print_cfg:
@@ -89,6 +86,14 @@ else:
         graph.print_graph_matplotlib(depth, args.print_all_paths)
 
     detect_status = graph.did_detect()
-    if detect_status is False:
+
+    if detect_status == True:
+        print('Found one of {} in code'.format(targets))
+        exit(0)
+    else:
+        print('Did not find any of {} in code'.format(
+            targets))
         exit(1)
+
+
 

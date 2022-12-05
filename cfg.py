@@ -47,10 +47,17 @@ class FunctionDefNodesFinder(threading.Thread):
 
 
 class ControlFlowGraph:
-    def __init__(self, function_to_locate: str = None, module_backtrace_max=2):
+    def __init__(self, functions_to_locate: typing.Union[typing.List[str], str] = None, module_backtrace_max=2):
         self._graph = internal_cfg.InternalGraphRepesentation()
         self._root_tree: typing.Optional[ast.AST] = None
-        self._function_to_locate = function_to_locate
+
+        if type(functions_to_locate) == str:
+            self._functions_to_locate = [functions_to_locate]
+        elif functions_to_locate is None:
+            self._functions_to_locate = []
+        else:
+            self._functions_to_locate = functions_to_locate
+        
         self._files_entirely_analyzed = set()
         self.module_backtrace_max = module_backtrace_max
 
@@ -107,9 +114,6 @@ class ControlFlowGraph:
             self._parse_and_resolve_tree_sitter(
                 syntax_tree.root_node, ['__narrow_entry__'], file_path)
 
-            if self._detected is False:
-                print('Did not find {} in code'.format(
-                    self._function_to_locate))
 
 
     # Returns the new target location
@@ -133,18 +137,25 @@ class ControlFlowGraph:
     def print_graph_matplotlib(self, max_depth=None, show_all_paths=False):
         networkx_data = self._graph.get_networkx_digraph()
 
+        graphs_to_display = []
+
         if show_all_paths:
             networkx_data = networkx.dfs_tree(
             networkx_data, source='__narrow_entry__', depth_limit=max_depth)
+            graphs_to_display.append(networkx_data)
         else:
-            # By default we want to show only the path(s) to the target, not all paths
-            inverted_data = networkx_data.reverse()
-            inverted_data = networkx.dfs_tree(inverted_data, source="unknown." + self._function_to_locate, depth_limit=max_depth)
-            networkx_data = inverted_data.reverse()
+            if self.did_detect():
+                # By default we want to show only the path(s) to the target, not all paths
+                for target in self._functions_to_locate:
+                    inverted_data = networkx_data.reverse()
+                    inverted_data = networkx.dfs_tree(inverted_data, source="unknown." + target, depth_limit=max_depth)
+                    target_data = inverted_data.reverse()
+                    graphs_to_display.append(target_data)
 
-        networkx.draw_spring(networkx_data, with_labels=True)
 
-        plt.show()
+        for graph in graphs_to_display:
+            networkx.draw_spring(networkx_data, with_labels=True)
+            plt.show()
 
     def _resolve_module_imports(self, file_path: str):
         output = subprocess.run(['pydeps', file_path, '--show-deps', '--pylib',
@@ -284,14 +295,11 @@ class ControlFlowGraph:
                                                             current_file_location)
 
                         if (call_def and
-                                call_def.child_by_field_name('name').text.decode('utf-8') == self._function_to_locate):
-                            print('Found {} in code'.format(
-                                self._function_to_locate))
+                                call_def.child_by_field_name('name').text.decode('utf-8') in self._functions_to_locate):
                             self._detected = True
                             return
 
-                if self._function_to_locate == func_name:
-                    print('Found {} in code'.format(self._function_to_locate))
+                if func_name in self._functions_to_locate:
                     self._detected = True
                     return
 

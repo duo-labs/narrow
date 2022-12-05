@@ -39,18 +39,28 @@ class PatchExtractor:
         pre_lines = []
         functionDefStrings = ['def', 'cdef']
 
+        current_function_context = None
+
         for line in lines:
             if line.strip(' ').startswith('-'):
                 pre_lines.append({
                     'line': line[1:],
-                    'real': True
+                    'real': True,
+                    'context': current_function_context
                 })
-
-            if line.strip(' ').startswith("@@ "):
+            elif line.strip(' ').startswith("@@ "):
                 pre_lines.append({
                     'line': line.split("@@", 3)[2].strip(" "),
-                    'real': False
+                    'real': False,
+                    'context': current_function_context
                 })
+            elif line.startswith(' '):
+                # This is context
+                if ' def ' or ' cedef ' in line:
+                    current_function_context = line
+                else:
+                    current_function_context = None
+            
 
         tentative_def = None
         for line_data in pre_lines:
@@ -69,6 +79,11 @@ class PatchExtractor:
                 elif tentative_def is not None:
                     discovered_functions.append(tentative_def)
                     tentative_def = None
+                # Now check to see if we edited a line inside a function
+                elif line_data['context'] is not None:
+                    tentative_def = self._get_function_name_from_diff_line(line_data['context'])
+                    if tentative_def:
+                        discovered_functions.append(tentative_def)
             else:
                 if ' cdef ' in line or line.startswith('cdef '):
                     function_def_name = line.split('cdef', 1)[1] \
@@ -79,6 +94,9 @@ class PatchExtractor:
                                         .split('(', 1)[0]
                     tentative_def = function_def_name.strip(" ")
 
+        # __init__ is not a helpful target
+        while "__init__" in discovered_functions:
+            discovered_functions.remove("__init__")
         return discovered_functions
 
     def find_targets_in_file(self, path_to_file: str, language: LanguageName):
@@ -135,4 +153,16 @@ class PatchExtractor:
 
         return []
 
+    def _get_function_name_from_diff_line(self, line):
+        tentative_def = None
+        if ' cdef ' in line or line.startswith('cdef '):
+            function_def_name = line.split('cdef', 1)[1] \
+                                .split('(', 1)[0]
+            tentative_def = function_def_name.strip(" ")
+        elif ' def ' in line or line.startswith('def '):
+            function_def_name = line.split('def', 1)[1] \
+                                .split('(', 1)[0]
+            tentative_def = function_def_name.strip(" ")
+
+        return tentative_def
 

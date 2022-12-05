@@ -14,16 +14,31 @@ else
 	exit 1
 fi
 
-if grep -q "7.2" narrow_output.json; then
+if grep -q "7\.2" narrow_output.json; then
 	echo "Resulting file contained correct CVSS"
 else
 	echo "Resulting file contained incorrect CVSS."
 	exit 1
 fi
 
-if grep -q "4.1" narrow_output.json; then
-	echo "Resulting file contained incorrect CVSS. Should have been reduced"
+if grep -q "4\.1" narrow_output.json; then
+	echo "Resulting file contained correct CVSS"
+else
+	echo "Resulting file contained incorrect CVSS."
 	exit 1
+fi
+
+if grep -q "7\.5" narrow_output.json; then
+	echo "Resulting file contained correct CVSS"
+else
+	echo "Resulting file contained incorrect CVSS."
+	exit 1
+fi
+
+if grep -q "7\.1" narrow_output.json; then
+	echo "Resulting file contained incorrect CVSS."
+	exit 1
+
 else
 	echo "Resulting file contained correct CVSS"
 
