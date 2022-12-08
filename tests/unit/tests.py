@@ -169,6 +169,9 @@ def test_cyclone_dx_output_alter():
         def did_detect(self):
             return False
 
+        def reset_targets(self, targets):
+            pass
+
     with open((pathlib.Path(__file__).parent.resolve()).joinpath("example_cyclonedx.json").as_posix(), 'r') as fp:
         contents = fp.read()
         contents_as_json = json.loads(contents)

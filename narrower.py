@@ -1860,6 +1860,9 @@ class Narrower:
     def generate_output_standard(self, contents_as_json):
       new_vulnerabilities = contents_as_json['vulnerabilities']
 
+      graph = self._get_graph([], self.module_backtracking)
+
+
       for vuln_idx, vuln in enumerate(new_vulnerabilities):
         vuln_id = vuln['id'] # e.g. "CVE-2021-39182", "GHSA-35m5-8cvj-8783", "SNYK-PYTHON-ENROCRYPT-1912876"
 
@@ -1869,20 +1872,26 @@ class Narrower:
         targets += extractor.find_targets_in_osv_entry(vuln_id)
 
         if len(targets) > 0:
-          graph = self._get_graph(targets, self.module_backtracking)
+          graph.reset_targets(targets)
           graph.construct_from_file(self.target_file_path, False)
           detect_status = graph.did_detect()
           if detect_status == False:
               # Reduce severity and fill in analysis
+              if 'analysis' not in contents_as_json['vulnerabilities'][vuln_idx]:
+                contents_as_json['vulnerabilities'][vuln_idx]['analysis'] = {'state': None, 'justification': None}
+
               contents_as_json['vulnerabilities'][vuln_idx]['analysis']['state'] = 'not_affected'
               contents_as_json['vulnerabilities'][vuln_idx]['analysis']['justification'] = 'code_not_reachable'
-              reduced_vector = self.drop_severity(contents_as_json['vulnerabilities'][vuln_idx]['ratings'][0]['vector'])
-              contents_as_json['vulnerabilities'][vuln_idx]['ratings'].append({
-                "source": {
-                  "name": "narrow run on " + date.today().isoformat()
-                },
-                "vector": reduced_vector
-              })
+
+              if 'ratings' in contents_as_json['vulnerabilities'][vuln_idx] and len(contents_as_json['vulnerabilities'][vuln_idx]['ratings']) > 0:
+                reduced_vector = self.drop_severity(contents_as_json['vulnerabilities'][vuln_idx]['ratings'][0]['vector'])
+              
+                contents_as_json['vulnerabilities'][vuln_idx]['ratings'].append({
+                  "source": {
+                    "name": "narrow run on " + date.today().isoformat()
+                  },
+                  "vector": reduced_vector
+                })
 
         
       return contents_as_json

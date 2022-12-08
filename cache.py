@@ -14,7 +14,6 @@
 
 import typing
 
-
 class Cache:
     def __init__(self):
         self.function_defs = {}
@@ -28,15 +27,11 @@ class Cache:
         self.function_defs[start_file][unique_key] = result
 
     def get_function_defs(self, start_file: str,
-                          start_ast_node:  any) -> \
-            typing.Tuple[typing.Any, typing.Any]:
+                          start_ast_node:  any):
         unique_key = str(start_ast_node.start_point) + str(start_ast_node.end_point)
 
-        if start_file not in self.function_defs:
-            return (None, None)
-
-        if unique_key not in \
-           self.function_defs[start_file]:
-            return (None, None)
+        if (start_file not in self.function_defs) or (unique_key not in \
+            self.function_defs[start_file]):
+            return (None, None, None)
 
         return self.function_defs[start_file][unique_key]

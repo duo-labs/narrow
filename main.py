@@ -76,6 +76,8 @@ else:
         print("No targets detected. Exiting.")
         exit(1)
 
+    print("Searching for any of {}".format(targets))
+
     graph = cfg.ControlFlowGraph(targets, args.module_backtracking)
     graph.construct_from_file(args.file, False)
 

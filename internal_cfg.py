@@ -25,6 +25,14 @@ class InternalGraphRepesentation:
             }
         }
 
+        self._file_context = {
+             '__narrow_entry__': '<ignore>'
+        }
+
+        self._alternate_keys = {
+
+        }
+
     def _get_subgraph_for(self, key):
         subgraph = {}
         for val in self._graph[key]['next']:
@@ -41,7 +49,8 @@ class InternalGraphRepesentation:
         graph = networkx.DiGraph()
 
         for key in self._graph.keys():
-            graph.add_node(key, label=key)
+            file_context = self._file_context[key]
+            graph.add_node(key, file=file_context)
 
         for key in self._graph.keys():
             for child in self._graph[key]['next']:
@@ -51,6 +60,27 @@ class InternalGraphRepesentation:
 
     def __str__(self):
         return self._graph.__repr__()
+
+    def note_alternate_names(self, type, name, arg_count):
+        resolved_node = type + '.' + name + '.' + str(arg_count)
+
+        type_and_name = type + '.' + name
+        name_and_arg_count = name + '.' + str(arg_count)
+        
+        if name not in self._alternate_keys:
+            self._alternate_keys[name] = []
+        
+        if type_and_name not in self._alternate_keys:
+            self._alternate_keys[type_and_name] = []
+
+        if name_and_arg_count not in self._alternate_keys:
+            self._alternate_keys[name_and_arg_count] = []
+
+        self._alternate_keys[name].append(resolved_node)
+        self._alternate_keys[type_and_name].append(resolved_node)
+        self._alternate_keys[name_and_arg_count].append(resolved_node)
+
+
 
     # Adds a new node to the graph. context is used to find the path so far
     # and next_node represents the name of the next node.
@@ -63,7 +93,7 @@ class InternalGraphRepesentation:
     # checking is_in_graph()
     def add_node_to_graph(self, context: typing.List[str], next_node: str,
                           arg_count: int,
-                          type: str = 'unknown'):
+                          type: str = 'unknown', file: str = 'unknown'):
         if len(context) == 0:
             raise ValueError("context should never be empty. \
             Use __narrow_entry__ for the root node")
@@ -81,6 +111,9 @@ class InternalGraphRepesentation:
             self._graph[resolved_node] = {
                 'next': set()
             }
+
+            self._file_context[resolved_node] = file
+            self.note_alternate_names(type, next_node, arg_count)
 
     # Decides if context -> next_node already exists
     # Since right now we only work on flat function calls, most of context is
@@ -115,21 +148,17 @@ class InternalGraphRepesentation:
     # Checks whether a function exists. If strict is False,
     # ignores the Class.
     def has_function(self, function_name: str, arg_count: typing.Optional[int], strict: bool = False):
-        if strict and function_name + '.' + str(arg_count) in self._graph:
+        if strict and function_name + '.' + str(arg_count) in self._alternate_keys:
             return True
 
         if not strict:
-            keys = self._graph.keys()
-            keys = map(
-                lambda key: InternalGraphRepesentation.remove_class(key), keys)
-
             if arg_count is None:
-                keys = map(
-                    lambda key: InternalGraphRepesentation.remove_arg_count(key), keys)
-  
-                if function_name in keys:
+                if function_name in self._alternate_keys:
                     return True
-            elif function_name + '.' + str(arg_count) in keys:
+            elif function_name + '.' + str(arg_count) in self._alternate_keys:
                 return True
 
         return False
+
+    def find_functions_matching_name(self, function_name: str) -> typing.List[str]:
+        return self._alternate_keys[function_name]

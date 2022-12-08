@@ -51,12 +51,7 @@ class ControlFlowGraph:
         self._graph = internal_cfg.InternalGraphRepesentation()
         self._root_tree: typing.Optional[ast.AST] = None
 
-        if type(functions_to_locate) == str:
-            self._functions_to_locate = [functions_to_locate]
-        elif functions_to_locate is None:
-            self._functions_to_locate = []
-        else:
-            self._functions_to_locate = functions_to_locate
+        self.reset_targets(functions_to_locate)
         
         self._files_entirely_analyzed = set()
         self.module_backtrace_max = module_backtrace_max
@@ -67,11 +62,20 @@ class ControlFlowGraph:
         self._cache = cache.Cache()
         self.parser = None
         self.symlinked_entrypoint = None
+        self.thread_import_resolver_lock = threading.Lock()
 
     def __del__(self):
         if self.symlinked_entrypoint:
             # A symlink was created, delete it
             os.unlink(self.symlinked_entrypoint)
+
+    def reset_targets(self, functions_to_locate: typing.Union[typing.List[str], str] = None):
+        if type(functions_to_locate) == str:
+            self._functions_to_locate = [functions_to_locate]
+        elif functions_to_locate is None:
+            self._functions_to_locate = []
+        else:
+            self._functions_to_locate = functions_to_locate
 
     # Function responsible for constructing a CFG given an entry file.
     #   only_file: If True, only builds a CFG contained in a single file.
@@ -82,7 +86,7 @@ class ControlFlowGraph:
         # is sometimes inadequate. For example, it's not sufficient to run narrow on narrow
         # For now we set a larger recursionlimit but really we need to re-write this algorithm to
         # be an iterative algorithm.
-        sys.setrecursionlimit(15000)
+        sys.setrecursionlimit(3000)
 
     
         new_file_path = self.mitigate_extensionless_file(file_path)
@@ -137,7 +141,7 @@ class ControlFlowGraph:
     def print_graph_matplotlib(self, max_depth=None, show_all_paths=False):
         networkx_data = self._graph.get_networkx_digraph()
 
-        graphs_to_display = []
+        graphs_to_display: typing.List[networkx.DiGraph] = []
 
         if show_all_paths:
             networkx_data = networkx.dfs_tree(
@@ -147,14 +151,21 @@ class ControlFlowGraph:
             if self.did_detect():
                 # By default we want to show only the path(s) to the target, not all paths
                 for target in self._functions_to_locate:
-                    inverted_data = networkx_data.reverse()
-                    inverted_data = networkx.dfs_tree(inverted_data, source="unknown." + target, depth_limit=max_depth)
-                    target_data = inverted_data.reverse()
-                    graphs_to_display.append(target_data)
+                    for func_to_display in self._graph.find_functions_matching_name(target):
+
+                        inverted_data = networkx_data.reverse()
+                        inverted_data = networkx.dfs_tree(inverted_data, source=func_to_display, depth_limit=max_depth)
+                        target_data = inverted_data.reverse()
+                        graphs_to_display.append(target_data)
 
 
         for graph in graphs_to_display:
-            networkx.draw_spring(networkx_data, with_labels=True)
+
+            networkx.draw_spring(graph, with_labels=True)
+
+            # Show file locations in shell
+            for node in list(graph.nodes()):
+                print(node + ": " + networkx_data.nodes[node]['file'])
             plt.show()
 
     def _resolve_module_imports(self, file_path: str):
@@ -191,7 +202,7 @@ class ControlFlowGraph:
                                 source_content.read().encode('utf-8'))
                             sub_syntax_tree = tree.root_node
                             # Treat import as function call
-                            self._graph.add_node_to_graph(context, import_name, 0)
+                            self._graph.add_node_to_graph(context, import_name, 0, file=current_file_location)
                             self._parse_and_resolve_tree_sitter(sub_syntax_tree, context +
                                                             ['unknown.' +
                                                                 import_name + '.0'], import_path)
@@ -282,17 +293,17 @@ class ControlFlowGraph:
             
             if func_name:
                 if not self.function_exists(func_name, arg_count):
-                    self._graph.add_node_to_graph(context, func_name, arg_count)
+                    self._graph.add_node_to_graph(context, func_name, arg_count, file=current_file_location)
 
                     call_defs = self._find_function_def_nodes_matching_name_tree_sitter(
                         func_name, self._root_tree, current_file_location, arg_count)
 
-                    for call_def in call_defs:
+                    for (call_def, call_file) in call_defs:
                         self._parse_and_resolve_tree_sitter(call_def.child_by_field_name('body'),
                                                             context +
                                                             ['unknown.' +
                                                                 func_name + '.' + str(arg_count)],
-                                                            current_file_location)
+                                                            call_file)
 
                         if (call_def and
                                 call_def.child_by_field_name('name').text.decode('utf-8') in self._functions_to_locate):
@@ -434,12 +445,14 @@ class ControlFlowGraph:
             #print(ast_chunk.sexp())
             pass
 
+    # Returns a List of tuples where the first element is the function def node and the
+    # second arg is the file where this was found
     def _find_function_def_nodes_matching_name_tree_sitter(self, func_name: str,
                                                            starting_ast,
                                                            current_file_location: str,
                                                            arg_count: int,
-                                                           class_type: str = 'unknown'):
-        (nodes, names) = self._find_function_def_nodes_tree_sitter(starting_ast,
+                                                           class_type: str = 'unknown') -> typing.List[typing.Tuple[any, str]]:
+        (nodes, names, files) = self._find_function_def_nodes_tree_sitter(starting_ast,
                                                                    current_file_location,
                                                                    class_type,
                                                                    imports_analyzed={})
@@ -462,7 +475,7 @@ class ControlFlowGraph:
                         
 
                 if param_count == arg_count or (param_count < arg_count and (arg_count - param_count <= default_count)):
-                    result.append(nodes[idx])
+                    result.append((nodes[idx], files[idx]))
 
         return result
 
@@ -473,15 +486,16 @@ class ControlFlowGraph:
     def _find_function_def_nodes_tree_sitter(self, starting_ast,
                                              current_file_location: str,
                                              class_type: str = 'unknown',
-                                             imports_analyzed: dict = {}):
+                                             imports_analyzed: dict = {}) -> typing.Tuple[typing.List[any], typing.List[str], typing.List[str]]:
 
         result: typing.List[any] = []
         result_names: typing.List[any] = []
+        result_files: typing.List[str] = []
 
-        (cache_nodes, cache_names) = self._cache.get_function_defs(
+        (cache_nodes, cache_names, cache_files) = self._cache.get_function_defs(
             current_file_location, starting_ast)
         if cache_nodes is not None:
-            return (cache_nodes, cache_names)
+            return (cache_nodes, cache_names, cache_files)
 
         # Find functions defined in this file
 
@@ -492,6 +506,7 @@ class ControlFlowGraph:
         for func in funcs:
             result_names.append(func['name'])
             result.append(func["node"])
+            result_files.append(current_file_location)
 
         # Find functions defined in classes in this file
         class_visitor = ast_visitors.TreeSitterClassDefVisitor()
@@ -501,6 +516,7 @@ class ControlFlowGraph:
         for init_func in init_funcs:
             result_names.append(init_func['class'])
             result.append(init_func["node"])
+            result_files.append(current_file_location)
 
         # Find imports and recursively check those files
         import_visitor = ast_visitors.TreeSitterImportVisitor()
@@ -511,8 +527,10 @@ class ControlFlowGraph:
         started_threads = []
 
         for import_name, import_details in imports.items():
+            self.thread_import_resolver_lock.acquire(True)
             if import_name not in imports_analyzed:
                 imports_analyzed[import_name] = True
+                self.thread_import_resolver_lock.release()
 
                 import_paths = self._find_entries_for_import(
                     import_details['name'],
@@ -531,20 +549,24 @@ class ControlFlowGraph:
                             new_thread = FunctionDefNodesFinder(find_args=(self, syntax_tree, import_path, class_type, imports_analyzed,))
                             new_thread.start()
                             started_threads.append(new_thread)
+            else:
+                self.thread_import_resolver_lock.release()
+
 
 
         for started_thread in started_threads:
             started_thread.join()
 
-            (sub_res, sub_names) = started_thread.result
+            (sub_res, sub_names, sub_files) = started_thread.result
             for idx, sub_res in enumerate(sub_res):
                 result.append(sub_res)
                 result_names.append(sub_names[idx])
+                result_files.append(sub_files[idx])
 
         self._cache.store_function_defs(
-            current_file_location, starting_ast, (result, result_names))
+            current_file_location, starting_ast, (result, result_names, result_files))
 
-        return (result, result_names)
+        return (result, result_names, result_files)
 
     # Returns the files on disk possibly corresponding to the import if they can be found
 

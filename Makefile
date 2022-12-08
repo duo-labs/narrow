@@ -17,8 +17,8 @@ lint:
 
 audit:
 	. env/bin/activate && python3 -m pip install -r requirements-dev.lock
-	- . env/bin/activate && python3 -m pip_audit -s osv -r requirements.lock -l -f json -o audit.json
-	. env/bin/activate && python3 utils/audit.py audit.json
+	- . env/bin/activate && python3 -m pip_audit -s osv -r requirements.lock -l -f cyclonedx-json -o audit.json
+	. env/bin/activate && python3 utils/audit.py audit.json main.py
 
 clean:
 	rm -rf env

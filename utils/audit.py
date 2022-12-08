@@ -24,21 +24,13 @@ audit_file = sys.argv[1]
 entry_file = sys.argv[2]
 
 command = ["python3", "main.py"]
-confirmed_count = 0
+resp = subprocess.run(command + ['--input-file', audit_file, entry_file])
+vuln_count = 0
 
-with open(audit_file, 'r') as fd:
+with open("narrow_output.json", 'r') as fd:
     audit_data = fd.read()
     audit_json = json.loads(audit_data)
 
-    for dependency in audit_json['dependencies']:
-        for vuln in dependency['vulns']:
-            vuln_id = vuln['id']
-            print("Checking vulnerability ID: {}".format(vuln_id))
-            resp = subprocess.run(command + ['--osv-id', vuln_id, entry_file], capture_output=True)
+    vuln_count = len(audit_json['vulnerabilities'])
 
-            if resp.returncode == 0:
-                print("CONFIRMED: Vulnerability ID: {}".format(vuln_id))
-                confirmed_count += 1
-            print('\n')
-
-exit(confirmed_count)
+exit(vuln_count)
