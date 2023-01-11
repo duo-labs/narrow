@@ -5,5 +5,5 @@ pydeps==1.10.24
 scipy==1.9.1
 requests==2.18.4
 tree-sitter==0.20.1
-jsonschema
-cvsslib
+jsonschema==4.16.0
+

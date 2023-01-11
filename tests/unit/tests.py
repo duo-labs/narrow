@@ -126,17 +126,6 @@ def test_cve_2021_43818():
     targets = extractor.find_targets_in_ndv_entry("CVE-2021-43818")
     assert(len(targets) > 0)
 
-def test_drop_severity():
-    fp = tempfile.TemporaryFile()
-
-    init_val = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
-    nar = narrower.Narrower(fp, 2, "test")
-    new_val = nar.drop_severity(init_val)
-
-    assert("RC:U" in new_val)
-    assert("E:U" in new_val)
-
-
 def test_krefst_file_validation():
 
     with open((pathlib.Path(__file__).parent.resolve()).joinpath("krefst.json").as_posix(), 'r') as fp:
@@ -184,8 +173,4 @@ def test_cyclone_dx_output_alter():
         assert(reduced['vulnerabilities'][0]['analysis']['state'] == 'not_affected')
         assert(reduced['vulnerabilities'][0]['analysis']['justification'] == 'code_not_reachable')
 
-        assert(len(reduced['vulnerabilities'][0]['ratings']) == 4)
-        assert('narrow' in reduced['vulnerabilities'][0]['ratings'][3]['source']['name'])
-        assert('AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N' in reduced['vulnerabilities'][0]['ratings'][3]['vector'])
-        assert('RC:U' in reduced['vulnerabilities'][0]['ratings'][3]['vector'])
-        assert('E:U' in reduced['vulnerabilities'][0]['ratings'][3]['vector'])
+        assert(len(reduced['vulnerabilities'][0]['ratings']) == 3)

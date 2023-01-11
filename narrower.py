@@ -24,7 +24,6 @@ import jsonschema
 
 from patch_extractor import PatchExtractor
 import cfg
-import cvsslib
 
 # CycloneDX Schema
 # https://raw.githubusercontent.com/CycloneDX/specification/eb7b3c9e188a16ce23f2c11ba6468da50804d286/schema/bom-1.4.schema.json
@@ -1876,36 +1875,14 @@ class Narrower:
           graph.construct_from_file(self.target_file_path, False)
           detect_status = graph.did_detect()
           if detect_status == False:
-              # Reduce severity and fill in analysis
+              # Fill in analysis
               if 'analysis' not in contents_as_json['vulnerabilities'][vuln_idx]:
                 contents_as_json['vulnerabilities'][vuln_idx]['analysis'] = {'state': None, 'justification': None}
 
               contents_as_json['vulnerabilities'][vuln_idx]['analysis']['state'] = 'not_affected'
               contents_as_json['vulnerabilities'][vuln_idx]['analysis']['justification'] = 'code_not_reachable'
 
-              if 'ratings' in contents_as_json['vulnerabilities'][vuln_idx] and len(contents_as_json['vulnerabilities'][vuln_idx]['ratings']) > 0:
-                reduced_vector = self.drop_severity(contents_as_json['vulnerabilities'][vuln_idx]['ratings'][0]['vector'])
-              
-                contents_as_json['vulnerabilities'][vuln_idx]['ratings'].append({
-                  "source": {
-                    "name": "narrow run on " + date.today().isoformat()
-                  },
-                  "vector": reduced_vector
-                })
-
-        
       return contents_as_json
-
-    # Drops the severity by forcing Exploit Code Maturity to unproven and
-    # Report Confidence to Unknown
-    def drop_severity(self, cvss: str):
-        val = cvsslib.CVSS31State()
-        val.from_vector(cvss)
-
-        val.report_confidence = cvsslib.cvss3.ReportConfidence.UNKNOWN
-        val.exploit_code_maturity = cvsslib.cvss3.ExploitCodeMaturity.UNPROVEN
-
-        return val.to_vector()
 
 
     def reduce_severities(self, severities: List[any]):
