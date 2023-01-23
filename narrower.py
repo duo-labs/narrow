@@ -1871,7 +1871,9 @@ class Narrower:
         targets += extractor.find_targets_in_osv_entry(vuln_id)
 
         if len(targets) > 0:
-          print("Looking for targets: " + targets)
+          print("Looking for targets: ")
+          for target in targets:
+            print("  " + target)
           graph.reset_targets(targets)
           graph.construct_from_file(self.target_file_path, False)
           detect_status = graph.did_detect()
