@@ -78,6 +78,8 @@ class ControlFlowGraph:
             os.unlink(self.symlinked_entrypoint)
 
     def reset_targets(self, functions_to_locate: typing.Union[typing.List[str], str] = None):
+        self._detected = False
+
         if type(functions_to_locate) == str:
             self._functions_to_locate = [functions_to_locate]
         elif functions_to_locate is None:
