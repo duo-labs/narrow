@@ -1871,6 +1871,9 @@ class Narrower:
         targets += extractor.find_targets_in_osv_entry(vuln_id)
 
         if len(targets) > 0:
+          print("Looking for targets: ")
+          for target in targets:
+            print("  " + target)
           graph.reset_targets(targets)
           graph.construct_from_file(self.target_file_path, False)
           detect_status = graph.did_detect()
@@ -1881,7 +1884,11 @@ class Narrower:
 
               contents_as_json['vulnerabilities'][vuln_idx]['analysis']['state'] = 'not_affected'
               contents_as_json['vulnerabilities'][vuln_idx]['analysis']['justification'] = 'code_not_reachable'
+          else:
+              if 'analysis' not in contents_as_json['vulnerabilities'][vuln_idx]:
+                contents_as_json['vulnerabilities'][vuln_idx]['analysis'] = {'state': None}
 
+              contents_as_json['vulnerabilities'][vuln_idx]['analysis']['state'] = 'exploitable'
       return contents_as_json
 
 
